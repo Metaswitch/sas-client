@@ -146,7 +146,10 @@ public:
     std::string to_string(Scope scope) const;
   };
 
-  static void init(int system_name_length, const char* system_name, const std::string& sas_address);
+  static void init(const std::string& system_name, 
+                   const std::string& system_type, 
+                   const std::string& resource_identifier, 
+                   const std::string& sas_address);
   static void term();
   static TrailId new_trail(uint32_t instance);
   static void report_event(const Event& event);
@@ -156,7 +159,10 @@ private:
   class Connection
   {
   public:
-    Connection(const std::string& system_name, const std::string& sas_address);
+    Connection(const std::string& system_name, 
+               const std::string& system_type, 
+               const std::string& resource_identifier, 
+               const std::string& sas_address);
     ~Connection();
 
     void send_msg(std::string msg);
@@ -168,8 +174,10 @@ private:
     void writer();
 
     std::string _system_name;
+    std::string _system_type;
+    std::string _resource_identifier;
     std::string _sas_address;
-
+ 
     eventq<std::string> _msg_q;
 
     pthread_t _writer;
