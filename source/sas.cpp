@@ -62,11 +62,16 @@ std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
 SAS::Connection* SAS::_connection = NULL;
 
 
-void SAS::init(int system_name_length, const char* system_name, const std::string& sas_address)
+void SAS::init(const std::string& system_name, 
+               const std::string& system_type, 
+               const std::string& resource_identifier, 
+               const std::string& sas_address)
 {
   if (sas_address != "0.0.0.0")
   {
-    _connection = new Connection(std::string(system_name, system_name_length),
+    _connection = new Connection(system_name,
+                                 system_type,
+                                 resource_identifier,
                                  sas_address);
   }
 }
@@ -79,8 +84,13 @@ void SAS::term()
 }
 
 
-SAS::Connection::Connection(const std::string& system_name, const std::string& sas_address) :
+SAS::Connection::Connection(const std::string& system_name, 
+                            const std::string& system_type, 
+                            const std::string& resource_identifier, 
+                            const std::string& sas_address) :
   _system_name(system_name),
+  _system_type(system_type),
+  _resource_identifier(resource_identifier),
   _sas_address(sas_address),
   _msg_q(MAX_MSG_QUEUE, false),
   _writer(0),
@@ -219,12 +229,12 @@ bool SAS::Connection::connect_init()
 
   // Set a maximum send timeout on the socket so we don't wait forever if the
   // connection fails.
-  struct timeval timeout;      
+  struct timeval timeout;
   timeout.tv_sec = SEND_TIMEOUT;
   timeout.tv_usec = 0;
 
   rc = ::setsockopt(_sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout));
-  if (rc < 0) 
+  if (rc < 0)
   {
     LOG_ERROR("Failed to set send timeout on SAS connection : %d %d %s", rc, errno, ::strerror(errno));
     ::close(_sock);
@@ -252,7 +262,10 @@ bool SAS::Connection::connect_init()
   // Send an init message to SAS.
   std::string init;
   std::string version("v0.1");
-  int init_len = INIT_HDR_SIZE + sizeof(uint8_t) + _system_name.length() + sizeof(uint32_t) + sizeof(uint8_t) + version.length();
+  int init_len = INIT_HDR_SIZE + sizeof(uint8_t) + _system_name.length()   + 
+                 sizeof(uint32_t) + sizeof(uint8_t) + version.length()     + 
+                 sizeof(uint8_t) + _system_type.length() + sizeof(uint8_t) +
+                 _resource_identifier.length();
   init.reserve(init_len);
   write_hdr(init, init_len, SAS_MSG_INIT);
   write_int8(init, (uint8_t)_system_name.length());
@@ -261,6 +274,10 @@ bool SAS::Connection::connect_init()
   init.append((char*)&endianness, sizeof(int));     // Endianness must be written in machine order.
   write_int8(init, version.length());
   write_data(init, version.length(), version.data());
+  write_int8(init, (uint8_t)_system_type.length());
+  write_data(init, _system_type.length(), _system_type.data());
+  write_int8(init, (uint8_t)_resource_identifier.length());
+  write_data(init, _resource_identifier.length(), _resource_identifier.data());
 
   LOG_DEBUG("Sending SAS INIT message");
 
