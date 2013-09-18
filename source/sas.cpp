@@ -262,10 +262,12 @@ bool SAS::Connection::connect_init()
   // Send an init message to SAS.
   std::string init;
   std::string version("v0.1");
-  int init_len = INIT_HDR_SIZE + sizeof(uint8_t) + _system_name.length()   + 
-                 sizeof(uint32_t) + sizeof(uint8_t) + version.length()     + 
-                 sizeof(uint8_t) + _system_type.length() + sizeof(uint8_t) +
-                 _resource_identifier.length();
+  int init_len = INIT_HDR_SIZE + 
+                 sizeof(uint8_t) + _system_name.length() + 
+                 sizeof(uint32_t) + 
+                 sizeof(uint8_t) + version.length() + 
+                 sizeof(uint8_t) + _system_type.length() + 
+                 sizeof(uint8_t) +_resource_identifier.length();
   init.reserve(init_len);
   write_hdr(init, init_len, SAS_MSG_INIT);
   write_int8(init, (uint8_t)_system_name.length());
