@@ -61,9 +61,9 @@ std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
 SAS::Connection* SAS::_connection = NULL;
 
 
-void SAS::init(const std::string& system_name,
-               const std::string& system_type,
-               const std::string& resource_identifier,
+void SAS::init(const std::string& system_name, 
+               const std::string& system_type, 
+               const std::string& resource_identifier, 
                const std::string& sas_address)
 {
   if (sas_address != "0.0.0.0")
@@ -83,9 +83,9 @@ void SAS::term()
 }
 
 
-SAS::Connection::Connection(const std::string& system_name,
-                            const std::string& system_type,
-                            const std::string& resource_identifier,
+SAS::Connection::Connection(const std::string& system_name, 
+                            const std::string& system_type, 
+                            const std::string& resource_identifier, 
                             const std::string& sas_address) :
   _system_name(system_name),
   _system_type(system_type),
@@ -290,11 +290,11 @@ bool SAS::Connection::connect_init()
   // Send an init message to SAS.
   std::string init;
   std::string version("v0.1");
-  int init_len = INIT_HDR_SIZE +
-                 sizeof(uint8_t) + _system_name.length() +
-                 sizeof(uint32_t) +
-                 sizeof(uint8_t) + version.length() +
-                 sizeof(uint8_t) + _system_type.length() +
+  int init_len = INIT_HDR_SIZE + 
+                 sizeof(uint8_t) + _system_name.length() + 
+                 sizeof(uint32_t) + 
+                 sizeof(uint8_t) + version.length() + 
+                 sizeof(uint8_t) + _system_type.length() + 
                  sizeof(uint8_t) +_resource_identifier.length();
   init.reserve(init_len);
   write_hdr(init, init_len, SAS_MSG_INIT);
