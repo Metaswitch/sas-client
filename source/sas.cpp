@@ -2,7 +2,7 @@
  * @file sas.cpp Implementation of SAS class used for reporting events
  * and markers to Service Assurance Server.
  *
- * Project Clearwater - IMS in the Cloud
+ * Service Assurance Server client library
  * Copyright (C) 2013  Metaswitch Networks Ltd
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -17,7 +17,7 @@
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * The author can be reached by email at clearwater@metaswitch.com or by
+ * The author can be reached by email at Modman-SAS@metaswitch.com or by
  * post at Metaswitch Networks Ltd, 100 Church St, Enfield EN2 6BQ, UK
  *
  * Special Exception
