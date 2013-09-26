@@ -45,11 +45,6 @@
 
 #include "eventq.h"
 
-typedef void (sas_log_callback_t)(int level,
-                                const char *module,
-                                int line_number,
-                                const char *fmt,
-                                ...);
 
 class SAS
 {
@@ -153,6 +148,28 @@ public:
     std::string to_string(Scope scope) const;
   };
 
+  enum log_level_t {
+    LOG_LEVEL_ERROR = 0,
+    LOG_LEVEL_WARNING = 1,
+    LOG_LEVEL_STATUS = 2,
+    LOG_LEVEL_INFO = 3,
+    LOG_LEVEL_VERBOSE = 4,
+    LOG_LEVEL_DEBUG = 5,
+  };
+
+  typedef void (sas_log_callback_t)(log_level_t level,
+                                    const char *module,
+                                    int line_number,
+                                    const char *fmt,
+                                    ...);
+
+  // A simple implementation of sas_log_callback_t that logs messages to stdout.
+  static void log_to_stdout(log_level_t level,
+                            const char *module,
+                            int line_number,
+                            const char *fmt,
+                            ...);
+
   static void init(const std::string& system_name,
                    const std::string& system_type,
                    const std::string& resource_identifier,
@@ -162,13 +179,6 @@ public:
   static TrailId new_trail(uint32_t instance);
   static void report_event(const Event& event);
   static void report_marker(const Marker& marker, Marker::Scope scope=Marker::Scope::None);
-
-  // A simple implementation of sas_log_callback_t that logs messages to stdout.
-  static void log_to_stdout(int level,
-                            const char *module,
-                            int line_number,
-                            const char *fmt,
-                            ...);
 
 private:
   class Connection

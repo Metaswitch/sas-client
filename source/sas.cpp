@@ -44,12 +44,12 @@
 #include "sas.h"
 
 
-#define SAS_LOG_ERROR(...) SAS_LOG(0, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_WARNING(...) SAS_LOG(1, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_STATUS(...) SAS_LOG(2, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_INFO(...) SAS_LOG(3, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_VERBOSE(...) SAS_LOG(4, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_DEBUG(...) SAS_LOG(5, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_ERROR(...) SAS_LOG(SAS::LOG_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_WARNING(...) SAS_LOG(SAS::LOG_LEVEL_WARNING, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_STATUS(...) SAS_LOG(SAS::LOG_LEVEL_STATUS, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_INFO(...) SAS_LOG(SAS::LOG_LEVEL_INFO, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_VERBOSE(...) SAS_LOG(SAS::LOG_LEVEL_VERBOSE, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_DEBUG(...) SAS_LOG(SAS::LOG_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
 
 #define SAS_LOG(...) if (_log_callback != NULL) { _log_callback(__VA_ARGS__); }
 
@@ -69,7 +69,7 @@ const int SAS_PORT = 6761;
 
 std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
 SAS::Connection* SAS::_connection = NULL;
-sas_log_callback_t* SAS::_log_callback = NULL;
+SAS::sas_log_callback_t* SAS::_log_callback = NULL;
 
 
 void SAS::init(const std::string& system_name,
@@ -466,7 +466,7 @@ std::string SAS::Marker::to_string(Marker::Scope scope) const
 }
 
 
-void SAS::log_to_stdout(int level,
+void SAS::log_to_stdout(log_level_t level,
                         const char *module,
                         int line_number,
                         const char *fmt,
@@ -478,13 +478,13 @@ void SAS::log_to_stdout(int level,
   va_start(args, fmt);
 
   switch (level) {
-    case 0: level_str = "ERROR"; break;
-    case 1: level_str = "WARNING"; break;
-    case 2: level_str = "STATUS"; break;
-    case 3: level_str = "INFO"; break;
-    case 4: level_str = "VERBOSE"; break;
-    case 5: level_str = "DEBUG"; break;
-    default: level_str = "UNKNOWN"; break;
+    case LOG_LEVEL_ERROR:   level_str = "ERROR"; break;
+    case LOG_LEVEL_WARNING: level_str = "WARNING"; break;
+    case LOG_LEVEL_STATUS:  level_str = "STATUS"; break;
+    case LOG_LEVEL_INFO:    level_str = "INFO"; break;
+    case LOG_LEVEL_VERBOSE: level_str = "VERBOSE"; break;
+    case LOG_LEVEL_DEBUG:   level_str = "DEBUG"; break;
+    default:                level_str = "UNKNOWN"; break;
   }
 
   printf("%s %s:%d: ", level_str, module, line_number);
