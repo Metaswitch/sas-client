@@ -40,9 +40,16 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <string>
 #include <atomic>
 
 #include "eventq.h"
+
+typedef void (sas_log_callback_t)(int level,
+                                const char *module,
+                                int line_number,
+                                const char *fmt,
+                                ...);
 
 class SAS
 {
@@ -146,22 +153,30 @@ public:
     std::string to_string(Scope scope) const;
   };
 
-  static void init(const std::string& system_name, 
-                   const std::string& system_type, 
-                   const std::string& resource_identifier, 
-                   const std::string& sas_address);
+  static void init(const std::string& system_name,
+                   const std::string& system_type,
+                   const std::string& resource_identifier,
+                   const std::string& sas_address,
+                   sas_log_callback_t* log_callback = NULL);
   static void term();
   static TrailId new_trail(uint32_t instance);
   static void report_event(const Event& event);
   static void report_marker(const Marker& marker, Marker::Scope scope=Marker::Scope::None);
 
+  // A simple implementation of sas_log_callback_t that logs messages to stdout.
+  static void log_to_stdout(int level,
+                            const char *module,
+                            int line_number,
+                            const char *fmt,
+                            ...);
+
 private:
   class Connection
   {
   public:
-    Connection(const std::string& system_name, 
-               const std::string& system_type, 
-               const std::string& resource_identifier, 
+    Connection(const std::string& system_name,
+               const std::string& system_type,
+               const std::string& resource_identifier,
                const std::string& sas_address);
     ~Connection();
 
@@ -177,7 +192,7 @@ private:
     std::string _system_type;
     std::string _resource_identifier;
     std::string _sas_address;
- 
+
     eventq<std::string> _msg_q;
 
     pthread_t _writer;
@@ -203,6 +218,7 @@ private:
 
   static std::atomic<TrailId> _next_trail_id;
   static Connection* _connection;
+  static sas_log_callback_t* _log_callback;
 };
 
 #endif
