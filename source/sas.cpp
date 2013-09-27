@@ -51,7 +51,7 @@
 #define SAS_LOG_VERBOSE(...) SAS_LOG(SAS::LOG_LEVEL_VERBOSE, __FILE__, __LINE__, __VA_ARGS__)
 #define SAS_LOG_DEBUG(...) SAS_LOG(SAS::LOG_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
 
-#define SAS_LOG(...) if (_log_callback != NULL) { _log_callback(__VA_ARGS__); }
+#define SAS_LOG(...) _log_callback(__VA_ARGS__)
 
 // SAS message types.
 const int SAS_MSG_INIT   = 1;
@@ -78,6 +78,8 @@ void SAS::init(const std::string& system_name,
                const std::string& sas_address,
                sas_log_callback_t* log_callback)
 {
+  _log_callback = log_callback;
+
   if (sas_address != "0.0.0.0")
   {
     _connection = new Connection(system_name,
@@ -85,8 +87,6 @@ void SAS::init(const std::string& system_name,
                                  resource_identifier,
                                  sas_address);
   }
-
-  _log_callback = log_callback;
 }
 
 
@@ -493,4 +493,13 @@ void SAS::log_to_stdout(log_level_t level,
   fflush(stdout);
 
   va_end(args);
+}
+
+
+void SAS::discard_logs(log_level_t level,
+                       const char *module,
+                       int line_number,
+                       const char *fmt,
+                       ...)
+{
 }

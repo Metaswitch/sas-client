@@ -170,11 +170,18 @@ public:
                             const char *fmt,
                             ...);
 
+  // A simple implementation of sas_log_callback_t that discards all logs.
+  static void discard_logs(log_level_t level,
+                           const char *module,
+                           int line_number,
+                           const char *fmt,
+                           ...);
+
   static void init(const std::string& system_name,
                    const std::string& system_type,
                    const std::string& resource_identifier,
                    const std::string& sas_address,
-                   sas_log_callback_t* log_callback = NULL);
+                   sas_log_callback_t* log_callback);
   static void term();
   static TrailId new_trail(uint32_t instance);
   static void report_event(const Event& event);
