@@ -62,9 +62,9 @@ std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
 SAS::Connection* SAS::_connection = NULL;
 
 
-void SAS::init(const std::string& system_name, 
-               const std::string& system_type, 
-               const std::string& resource_identifier, 
+void SAS::init(const std::string& system_name,
+               const std::string& system_type,
+               const std::string& resource_identifier,
                const std::string& sas_address)
 {
   if (sas_address != "0.0.0.0")
@@ -84,9 +84,9 @@ void SAS::term()
 }
 
 
-SAS::Connection::Connection(const std::string& system_name, 
-                            const std::string& system_type, 
-                            const std::string& resource_identifier, 
+SAS::Connection::Connection(const std::string& system_name,
+                            const std::string& system_type,
+                            const std::string& resource_identifier,
                             const std::string& sas_address) :
   _system_name(system_name),
   _system_type(system_type),
@@ -262,12 +262,18 @@ bool SAS::Connection::connect_init()
   // Send an init message to SAS.
   std::string init;
   std::string version("v0.1");
-  int init_len = INIT_HDR_SIZE + 
-                 sizeof(uint8_t) + _system_name.length() + 
-                 sizeof(uint32_t) + 
-                 sizeof(uint8_t) + version.length() + 
-                 sizeof(uint8_t) + _system_type.length() + 
-                 sizeof(uint8_t) +_resource_identifier.length();
+
+  // The resource version is part of the binary protocol but is not currently
+  // exposed over the C++ API.
+  std::string resource_version("");
+
+  int init_len = INIT_HDR_SIZE +
+                 sizeof(uint8_t) + _system_name.length() +
+                 sizeof(uint32_t) +
+                 sizeof(uint8_t) + version.length() +
+                 sizeof(uint8_t) + _system_type.length() +
+                 sizeof(uint8_t) + _resource_identifier.length() +
+                 sizeof(uint8_t) + resource_version.length();
   init.reserve(init_len);
   write_hdr(init, init_len, SAS_MSG_INIT);
   write_int8(init, (uint8_t)_system_name.length());
@@ -280,6 +286,8 @@ bool SAS::Connection::connect_init()
   write_data(init, _system_type.length(), _system_type.data());
   write_int8(init, (uint8_t)_resource_identifier.length());
   write_data(init, _resource_identifier.length(), _resource_identifier.data());
+  write_int8(init, (uint8_t)resource_version.length());
+  write_data(init, resource_version.length(), resource_version.data());
 
   LOG_DEBUG("Sending SAS INIT message");
 
@@ -332,7 +340,7 @@ void SAS::report_marker(const Marker& marker, Marker::Scope scope)
 void SAS::write_hdr(std::string& s, uint16_t msg_length, uint8_t msg_type)
 {
   SAS::write_int16(s, msg_length);
-  SAS::write_int8(s, 1);             // Version = 1
+  SAS::write_int8(s, 3);             // Version = 3
   SAS::write_int8(s, msg_type);
   SAS::write_timestamp(s);
 }
