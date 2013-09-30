@@ -2,7 +2,7 @@
  * @file sas.h Definition of SAS class used for reporting events and markers
  * to Service Assurance Server
  *
- * Project Clearwater - IMS in the Cloud
+ * Service Assurance Server client library
  * Copyright (C) 2013  Metaswitch Networks Ltd
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -40,9 +40,11 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <string>
 #include <atomic>
 
 #include "eventq.h"
+
 
 class SAS
 {
@@ -146,10 +148,40 @@ public:
     std::string to_string(Scope scope) const;
   };
 
-  static void init(const std::string& system_name, 
-                   const std::string& system_type, 
-                   const std::string& resource_identifier, 
-                   const std::string& sas_address);
+  enum log_level_t {
+    LOG_LEVEL_ERROR = 0,
+    LOG_LEVEL_WARNING = 1,
+    LOG_LEVEL_STATUS = 2,
+    LOG_LEVEL_INFO = 3,
+    LOG_LEVEL_VERBOSE = 4,
+    LOG_LEVEL_DEBUG = 5,
+  };
+
+  typedef void (sas_log_callback_t)(log_level_t level,
+                                    const char *module,
+                                    int line_number,
+                                    const char *fmt,
+                                    ...);
+
+  // A simple implementation of sas_log_callback_t that logs messages to stdout.
+  static void log_to_stdout(log_level_t level,
+                            const char *module,
+                            int line_number,
+                            const char *fmt,
+                            ...);
+
+  // A simple implementation of sas_log_callback_t that discards all logs.
+  static void discard_logs(log_level_t level,
+                           const char *module,
+                           int line_number,
+                           const char *fmt,
+                           ...);
+
+  static void init(const std::string& system_name,
+                   const std::string& system_type,
+                   const std::string& resource_identifier,
+                   const std::string& sas_address,
+                   sas_log_callback_t* log_callback);
   static void term();
   static TrailId new_trail(uint32_t instance);
   static void report_event(const Event& event);
@@ -159,9 +191,9 @@ private:
   class Connection
   {
   public:
-    Connection(const std::string& system_name, 
-               const std::string& system_type, 
-               const std::string& resource_identifier, 
+    Connection(const std::string& system_name,
+               const std::string& system_type,
+               const std::string& resource_identifier,
                const std::string& sas_address);
     ~Connection();
 
@@ -177,7 +209,7 @@ private:
     std::string _system_type;
     std::string _resource_identifier;
     std::string _sas_address;
- 
+
     eventq<std::string> _msg_q;
 
     pthread_t _writer;
@@ -203,6 +235,7 @@ private:
 
   static std::atomic<TrailId> _next_trail_id;
   static Connection* _connection;
+  static sas_log_callback_t* _log_callback;
 };
 
 #endif

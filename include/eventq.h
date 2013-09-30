@@ -1,7 +1,7 @@
 /**
  * @file eventq.h Template definition for event queue
  *
- * Project Clearwater - IMS in the Cloud
+ * Service Assurance Server client library
  * Copyright (C) 2013  Metaswitch Networks Ltd
  *
  * This program is free software: you can redistribute it and/or modify it
