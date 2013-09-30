@@ -2,7 +2,7 @@
  * @file sas.cpp Implementation of SAS class used for reporting events
  * and markers to Service Assurance Server.
  *
- * Project Clearwater - IMS in the Cloud
+ * Service Assurance Server client library
  * Copyright (C) 2013  Metaswitch Networks Ltd
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -39,10 +39,19 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <stdarg.h>
 
-#include "log.h"
 #include "sas.h"
 
+
+#define SAS_LOG_ERROR(...) SAS_LOG(SAS::LOG_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_WARNING(...) SAS_LOG(SAS::LOG_LEVEL_WARNING, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_STATUS(...) SAS_LOG(SAS::LOG_LEVEL_STATUS, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_INFO(...) SAS_LOG(SAS::LOG_LEVEL_INFO, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_VERBOSE(...) SAS_LOG(SAS::LOG_LEVEL_VERBOSE, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_DEBUG(...) SAS_LOG(SAS::LOG_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
+
+#define SAS_LOG(...) _log_callback(__VA_ARGS__)
 
 // SAS message types.
 const int SAS_MSG_INIT   = 1;
@@ -60,13 +69,17 @@ const int SAS_PORT = 6761;
 
 std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
 SAS::Connection* SAS::_connection = NULL;
+SAS::sas_log_callback_t* SAS::_log_callback = NULL;
 
 
 void SAS::init(const std::string& system_name,
                const std::string& system_type,
                const std::string& resource_identifier,
-               const std::string& sas_address)
+               const std::string& sas_address,
+               sas_log_callback_t* log_callback)
 {
+  _log_callback = log_callback;
+
   if (sas_address != "0.0.0.0")
   {
     _connection = new Connection(system_name,
@@ -102,7 +115,7 @@ SAS::Connection::Connection(const std::string& system_name,
   if (rc < 0)
   {
     // LCOV_EXCL_START
-    LOG_ERROR("Error creating SAS thread");
+    SAS_LOG_ERROR("Error creating SAS thread");
     // LCOV_EXCL_STOP
   }
 }
@@ -169,12 +182,12 @@ void SAS::Connection::writer()
               // The send timeout has expired, so close the socket so we
               // try to connect again (and avoid buffering data while waiting
               // for long TCP timeouts).
-              LOG_ERROR("SAS connection to %s:%d locked up: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
+              SAS_LOG_ERROR("SAS connection to %s:%d locked up: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
             }
             else
             {
               // The socket has failed.
-              LOG_ERROR("SAS connection to %s:%d failed: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
+              SAS_LOG_ERROR("SAS connection to %s:%d failed: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
             }
             ::close(_sock);
             _sock = -1;
@@ -204,7 +217,7 @@ void SAS::Connection::writer()
     // reconnect.  We wait on the queue so we get a kick if the term function
     // is called.
     std::string msg;
-    LOG_DEBUG("Waiting to reconnect to SAS - timeout = %d", reconnect_timeout);
+    SAS_LOG_DEBUG("Waiting to reconnect to SAS - timeout = %d", reconnect_timeout);
     if (!_msg_q.pop(msg, reconnect_timeout))
     {
       // Received a termination signal on the queue, so exit.
@@ -219,11 +232,11 @@ bool SAS::Connection::connect_init()
   int rc;
   struct sockaddr_in addr;
 
-  LOG_STATUS("Attempting to connect to SAS %s", _sas_address.c_str());
+  SAS_LOG_STATUS("Attempting to connect to SAS %s", _sas_address.c_str());
 
   if ((_sock = ::socket(AF_INET, SOCK_STREAM, 0)) == -1)
   {
-    LOG_ERROR("Failed to open SAS socket: %d (%s)\n", errno, ::strerror(errno));
+    SAS_LOG_ERROR("Failed to open SAS socket: %d (%s)\n", errno, ::strerror(errno));
     return false;
   }
 
@@ -236,7 +249,7 @@ bool SAS::Connection::connect_init()
   rc = ::setsockopt(_sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout));
   if (rc < 0)
   {
-    LOG_ERROR("Failed to set send timeout on SAS connection : %d %d %s", rc, errno, ::strerror(errno));
+    SAS_LOG_ERROR("Failed to set send timeout on SAS connection : %d %d %s", rc, errno, ::strerror(errno));
     ::close(_sock);
     _sock = -1;
     return false;
@@ -251,13 +264,13 @@ bool SAS::Connection::connect_init()
 
   if (rc != 0)
   {
-    LOG_ERROR("Failed to connect to SAS %s:%d : %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
+    SAS_LOG_ERROR("Failed to connect to SAS %s:%d : %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
     ::close(_sock);
     _sock = -1;
     return false;
   }
 
-  LOG_DEBUG("Connected SAS socket to %s:%d", _sas_address.c_str(), SAS_PORT);
+  SAS_LOG_DEBUG("Connected SAS socket to %s:%d", _sas_address.c_str(), SAS_PORT);
 
   // Send an init message to SAS.
   std::string init;
@@ -289,18 +302,18 @@ bool SAS::Connection::connect_init()
   write_int8(init, (uint8_t)resource_version.length());
   write_data(init, resource_version.length(), resource_version.data());
 
-  LOG_DEBUG("Sending SAS INIT message");
+  SAS_LOG_DEBUG("Sending SAS INIT message");
 
   rc = ::send(_sock, init.data(), init.length(), 0);
   if (rc < 0)
   {
-    LOG_ERROR("SAS connection to %s:%d failed: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
+    SAS_LOG_ERROR("SAS connection to %s:%d failed: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
     ::close(_sock);
     _sock = -1;
     return false;
   }
 
-  LOG_STATUS("Connected to SAS %s:%d", _sas_address.c_str(), SAS_PORT);
+  SAS_LOG_STATUS("Connected to SAS %s:%d", _sas_address.c_str(), SAS_PORT);
 
   return true;
 }
@@ -461,4 +474,40 @@ std::string SAS::Marker::to_string(Marker::Scope scope) const
 }
 
 
+void SAS::log_to_stdout(log_level_t level,
+                        const char *module,
+                        int line_number,
+                        const char *fmt,
+                        ...)
+{
+  va_list args;
+  const char* level_str;
 
+  va_start(args, fmt);
+
+  switch (level) {
+    case LOG_LEVEL_ERROR:   level_str = "ERROR"; break;
+    case LOG_LEVEL_WARNING: level_str = "WARNING"; break;
+    case LOG_LEVEL_STATUS:  level_str = "STATUS"; break;
+    case LOG_LEVEL_INFO:    level_str = "INFO"; break;
+    case LOG_LEVEL_VERBOSE: level_str = "VERBOSE"; break;
+    case LOG_LEVEL_DEBUG:   level_str = "DEBUG"; break;
+    default:                level_str = "UNKNOWN"; break;
+  }
+
+  printf("%s %s:%d: ", level_str, module, line_number);
+  vprintf(fmt, args);
+  printf("\n");
+  fflush(stdout);
+
+  va_end(args);
+}
+
+
+void SAS::discard_logs(log_level_t level,
+                       const char *module,
+                       int line_number,
+                       const char *fmt,
+                       ...)
+{
+}
