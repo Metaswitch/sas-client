@@ -16,7 +16,7 @@
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * The author can be reached by email at Modman-SAS@metaswitch.com or by
+ * The author can be reached by email at clearwater@metaswitch.com or by
  * post at Metaswitch Networks Ltd, 100 Church St, Enfield EN2 6BQ, UK
  *
  * Special Exception
