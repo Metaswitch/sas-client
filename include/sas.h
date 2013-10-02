@@ -41,7 +41,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <string>
-#include <cstdatomic>
+#include <atomic>
 
 #include "eventq.h"
 
