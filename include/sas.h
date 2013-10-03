@@ -122,8 +122,8 @@ public:
   class Event : public Message
   {
   public:
-    // Event ID is restricted to 24 bits (1 to 2^24-1).  To enforce this we
-    // set the top byte to 0x0F.
+    // The top byte of the event ID if reserved for use by SAS and should be set
+    // to 0x0F.
     inline Event(TrailId trail, uint32_t event, uint32_t instance) :
       Message(trail,
               ((event & 0x00FFFFFF) | 0x0F000000),
