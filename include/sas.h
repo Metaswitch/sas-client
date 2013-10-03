@@ -122,8 +122,12 @@ public:
   class Event : public Message
   {
   public:
-    // The top byte of the event ID if reserved for use by SAS and should be set
-    // to 0x0F.
+    // Event IDs as defined by the application are restricted to 24 bits.
+    // This is because the top byte of the event ID is reserved and set to 0x0F.
+    // It is comprised of:
+    //   - The top nibble, which is reserved for future use and must be set to
+    //     0x0.
+    //   - the bottom nibble, which SAS requires be set to the value 0xF.
     inline Event(TrailId trail, uint32_t event, uint32_t instance) :
       Message(trail,
               ((event & 0x00FFFFFF) | 0x0F000000),
