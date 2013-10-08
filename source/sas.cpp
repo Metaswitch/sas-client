@@ -240,12 +240,16 @@ bool SAS::Connection::connect_init()
   timeout.tv_usec = 0;
 
   struct addrinfo *p;
+  
+  // Reset the return code to error
+  rc = 1;
 
   for (p = addrs; p != NULL; p = p->ai_next)
   {
     if ((_sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
     {
       // There was an error opening the socket - try the next address
+      LOG_DEBUG("Failed to open socket");
       continue;
     }
 
@@ -258,7 +262,7 @@ bool SAS::Connection::connect_init()
                                                  rc, errno, ::strerror(errno));
       ::close(_sock);
       _sock = -1;
-      return false;
+      continue;
     }
 
     rc = ::connect(_sock, p->ai_addr, p->ai_addrlen);
@@ -266,7 +270,9 @@ bool SAS::Connection::connect_init()
     if (rc < 0)
     {
       // There was an error connecting - try the next address
+      LOG_DEBUG("Failed to connect to address: %s", p->ai_addr);
       ::close(_sock);
+      _sock = -1;
       continue;
     }
 
@@ -278,8 +284,6 @@ bool SAS::Connection::connect_init()
   {
     LOG_ERROR("Failed to connect to SAS %s:%s : %d %s", _sas_address.c_str(),
                                            SAS_PORT, errno, ::strerror(errno));
-    ::close(_sock);
-    _sock = -1;
     return false;
   }
 
