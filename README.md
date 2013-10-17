@@ -8,6 +8,8 @@ A makefile is provided to compile the code to an archive file (`libsas.a`), whic
 
 To build the library, run `make` in the top level directory. A `clean` target is also supplied.
 
+The library must be built with gcc 4.4 (or higher). It has been tested on Ubuntu and Red Hat Enterprise Linux
+
 To include this library in your application, you must ensure that all the files in `include/` are in your applications include path, and you have `#include <sas.h>` in your code.
 
 To link with this library you should ensure `libsas.a` is in your link path (using the `-L` option) and supply `-lsas -lpthread -lrt` to the linker.
