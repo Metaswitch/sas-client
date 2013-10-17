@@ -41,10 +41,33 @@
 #include <stdint.h>
 #include <string.h>
 #include <string>
-#include <atomic>
+#include <cstdatomic>
 
 #include "eventq.h"
 
+
+// Marker IDs
+#define MARKER_ID_START_MARKER          0x01000003
+#define MARKER_ID_END_MARKER            0x01000004
+#define MARKER_ID_DAILED_DIGITS         0x01000005
+#define MARKER_ID_CALLING_DN            0x01000006
+#define MARKER_ID_CALLED_DN             0x01000007
+#define MARKER_ID_SIP_REGISTRATION      0x010B0004
+#define MARKER_ID_SIP_ALL_REGISTER      0x010B0005
+#define MARKER_ID_SIP_CALL_ID           0x010C0001
+#define MARKER_ID_IMS_CHARGING_ID       0x010C0002
+#define MARKER_ID_VIA_BRANCH_PARAM      0x010C0003
+
+#define MARKER_ID_OUTBOUND_CALLING_URI  0x05000003
+#define MARKER_ID_INBOUND_CALLING_URI   0x05000004
+#define MARKER_ID_OUTBOUND_CALLED_URI   0x05000005
+#define MARKER_ID_INBOUND_CALLED_URI    0x05000006
+
+#define MARKER_ID_PROTOCOL_ERROR        0x01000001
+
+// init return codes
+#define SAS_INIT_RC_OK   0
+#define SAS_INIT_RC_ERR  1
 
 class SAS
 {
@@ -150,7 +173,7 @@ public:
     {
       None = 0,
       Branch = 1,
-      TrailGroup = 2
+      Trace = 2
     };
 
     std::string to_string(Scope scope) const;
@@ -185,7 +208,7 @@ public:
                            const char *fmt,
                            ...);
 
-  static void init(const std::string& system_name,
+  static int init(const std::string& system_name,
                    const std::string& system_type,
                    const std::string& resource_identifier,
                    const std::string& sas_address,

@@ -65,19 +65,37 @@ const int MARKER_HDR_SIZE = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t
 
 const char* SAS_PORT = "6761";
 
+// MIN/MAX string lengths for init parameters.
+const int MIN_STR_LEN = 1;
+const int MAX_SYSTEM_LEN = 64;
+const int MAX_RESOURCE_ID_LEN = 255;
+
 
 std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
 SAS::Connection* SAS::_connection = NULL;
 SAS::sas_log_callback_t* SAS::_log_callback = NULL;
 
 
-void SAS::init(const std::string& system_name,
+int SAS::init(const std::string& system_name,
                const std::string& system_type,
                const std::string& resource_identifier,
                const std::string& sas_address,
                sas_log_callback_t* log_callback)
 {
   _log_callback = log_callback;
+
+  // Check the system and resource parameters are present and have the correct
+  // length.
+  if ((system_name.length() < MIN_STR_LEN) ||
+      (system_name.length() > MAX_SYSTEM_LEN) ||
+      (system_type.length() < MIN_STR_LEN) ||
+      (system_type.length() > MAX_SYSTEM_LEN) ||
+      (resource_identifier.length() < MIN_STR_LEN) ||
+      (resource_identifier.length() > MAX_RESOURCE_ID_LEN))
+  {
+    SAS_LOG_ERROR("Error connecting to SAS - Invalid init parameter.");
+    return SAS_INIT_RC_ERR;
+  }
 
   if (sas_address != "0.0.0.0")
   {
@@ -86,6 +104,8 @@ void SAS::init(const std::string& system_name,
                                  resource_identifier,
                                  sas_address);
   }
+
+  return SAS_INIT_RC_OK;
 }
 
 
@@ -108,6 +128,9 @@ SAS::Connection::Connection(const std::string& system_name,
   _writer(0),
   _sock(-1)
 {
+  // Open the queue for input
+  _msg_q.open();
+
   // Spawn a thread to open and write to the SAS connection.
   int rc = pthread_create(&_writer, NULL, &writer_thread, this);
 
@@ -153,9 +176,6 @@ void SAS::Connection::writer()
 
     if (connect_init())
     {
-      // Open the queue for input
-      _msg_q.open();
-
       // Now can start dequeuing and sending data.
       std::string msg;
       while ((_sock != -1) && (_msg_q.pop(msg)))
@@ -222,6 +242,9 @@ void SAS::Connection::writer()
       // Received a termination signal on the queue, so exit.
       break;
     }
+
+    // Reopen the queue for input
+    _msg_q.open();
   }
 }
 
@@ -229,7 +252,7 @@ void SAS::Connection::writer()
 bool SAS::Connection::connect_init()
 {
   int rc;
-  struct addrinfo hints, *addrs; 
+  struct addrinfo hints, *addrs;
 
   SAS_LOG_STATUS("Attempting to connect to SAS %s", _sas_address.c_str());
 
@@ -239,10 +262,10 @@ bool SAS::Connection::connect_init()
 
   rc = getaddrinfo(_sas_address.c_str(), SAS_PORT, &hints, &addrs);
 
-  if (rc != 0) 
+  if (rc != 0)
   {
     SAS_LOG_ERROR("Failed to get addresses for SAS %s:%s : %d %s",
-                     _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno)); 
+                     _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
     return false;
   }
 
@@ -253,7 +276,7 @@ bool SAS::Connection::connect_init()
   timeout.tv_usec = 0;
 
   struct addrinfo *p;
-  
+
   // Reset the return code to error
   rc = 1;
 
@@ -267,7 +290,7 @@ bool SAS::Connection::connect_init()
     }
 
     rc = ::setsockopt(_sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
-                                                              sizeof(timeout)); 
+                                                              sizeof(timeout));
 
     if (rc < 0)
     {
@@ -287,11 +310,11 @@ bool SAS::Connection::connect_init()
       ::close(_sock);
       _sock = -1;
       continue;
-    } 
+    }
 
     // Connection successful at this point
     break;
-  } 
+  }
 
   if (rc != 0)
   {
@@ -299,7 +322,7 @@ bool SAS::Connection::connect_init()
     return false;
   }
 
-  freeaddrinfo(addrs); 
+  freeaddrinfo(addrs);
 
   SAS_LOG_DEBUG("Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
 
