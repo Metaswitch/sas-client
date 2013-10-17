@@ -35,10 +35,12 @@
  * as those licenses appear in the file LICENSE-OPENSSL.
  */
 
+#include <stdio.h>
 #include <time.h>
 #include <string.h>
 #include <netdb.h>
 #include <stdarg.h>
+#include <sys/socket.h>
 
 #include "sas.h"
 
@@ -229,7 +231,7 @@ void SAS::Connection::writer()
 bool SAS::Connection::connect_init()
 {
   int rc;
-  struct addrinfo hints, *addrs; 
+  struct addrinfo hints, *addrs;
 
   SAS_LOG_STATUS("Attempting to connect to SAS %s", _sas_address.c_str());
 
@@ -239,10 +241,10 @@ bool SAS::Connection::connect_init()
 
   rc = getaddrinfo(_sas_address.c_str(), SAS_PORT, &hints, &addrs);
 
-  if (rc != 0) 
+  if (rc != 0)
   {
     SAS_LOG_ERROR("Failed to get addresses for SAS %s:%s : %d %s",
-                     _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno)); 
+                     _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
     return false;
   }
 
@@ -253,7 +255,7 @@ bool SAS::Connection::connect_init()
   timeout.tv_usec = 0;
 
   struct addrinfo *p;
-  
+
   // Reset the return code to error
   rc = 1;
 
@@ -267,7 +269,7 @@ bool SAS::Connection::connect_init()
     }
 
     rc = ::setsockopt(_sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
-                                                              sizeof(timeout)); 
+                                                              sizeof(timeout));
 
     if (rc < 0)
     {
@@ -287,11 +289,11 @@ bool SAS::Connection::connect_init()
       ::close(_sock);
       _sock = -1;
       continue;
-    } 
+    }
 
     // Connection successful at this point
     break;
-  } 
+  }
 
   if (rc != 0)
   {
@@ -299,7 +301,7 @@ bool SAS::Connection::connect_init()
     return false;
   }
 
-  freeaddrinfo(addrs); 
+  freeaddrinfo(addrs);
 
   SAS_LOG_DEBUG("Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
 
