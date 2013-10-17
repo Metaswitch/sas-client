@@ -65,7 +65,7 @@
 
 #define MARKER_ID_PROTOCOL_ERROR        0x01000001
 
-// init return codes
+// SAS::init return codes
 #define SAS_INIT_RC_OK   0
 #define SAS_INIT_RC_ERR  1
 
