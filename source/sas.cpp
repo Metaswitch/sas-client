@@ -115,7 +115,7 @@ int SAS::init(const std::string& system_name,
     return SAS_INIT_RC_ERR;
   }
 
-  if (resource_identifier.length() >= MAX_RESOURCE_ID_LEN)
+  if (resource_identifier.length() > MAX_RESOURCE_ID_LEN)
   {
     SAS_LOG_ERROR("Error connecting to SAS - Resource Identifier is too long.");
     return SAS_INIT_RC_ERR;
