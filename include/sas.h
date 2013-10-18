@@ -41,14 +41,14 @@
 #include <stdint.h>
 #include <string.h>
 #include <string>
-#include <cstdatomic>
+#include <atomic>
 
 #include "eventq.h"
 
 
 // Marker IDs
-#define MARKER_ID_START_MARKER          0x01000003
-#define MARKER_ID_END_MARKER            0x01000004
+#define MARKER_ID_START                 0x01000003
+#define MARKER_ID_END                   0x01000004
 #define MARKER_ID_DAILED_DIGITS         0x01000005
 #define MARKER_ID_CALLING_DN            0x01000006
 #define MARKER_ID_CALLED_DN             0x01000007
