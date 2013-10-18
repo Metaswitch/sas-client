@@ -1,2 +1,3 @@
 *.o
 libsas.a
+include/config.h
