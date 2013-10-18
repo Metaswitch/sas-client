@@ -66,7 +66,6 @@ const int MARKER_HDR_SIZE = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t
 const char* SAS_PORT = "6761";
 
 // MIN/MAX string lengths for init parameters.
-const int MIN_STR_LEN = 1;
 const int MAX_SYSTEM_LEN = 64;
 const int MAX_RESOURCE_ID_LEN = 255;
 
@@ -86,14 +85,39 @@ int SAS::init(const std::string& system_name,
 
   // Check the system and resource parameters are present and have the correct
   // length.
-  if ((system_name.length() < MIN_STR_LEN) ||
-      (system_name.length() > MAX_SYSTEM_LEN) ||
-      (system_type.length() < MIN_STR_LEN) ||
-      (system_type.length() > MAX_SYSTEM_LEN) ||
-      (resource_identifier.length() < MIN_STR_LEN) ||
-      (resource_identifier.length() > MAX_RESOURCE_ID_LEN))
+  if (system_name.length() <= 0)
   {
-    SAS_LOG_ERROR("Error connecting to SAS - Invalid init parameter.");
+    SAS_LOG_ERROR("Error connecting to SAS - System name is blank.");
+    return SAS_INIT_RC_ERR;
+  }
+
+  if (system_name.length() > MAX_SYSTEM_LEN)
+  {
+    SAS_LOG_ERROR("Error connecting to SAS - System name is too long.");
+    return SAS_INIT_RC_ERR;
+  }
+
+  if (system_type.length() <= 0)
+  {
+    SAS_LOG_ERROR("Error connecting to SAS - System type is blank.");
+    return SAS_INIT_RC_ERR;
+  }
+
+  if (system_type.length() > MAX_SYSTEM_LEN)
+  {
+    SAS_LOG_ERROR("Error connecting to SAS - System type is too long.");
+    return SAS_INIT_RC_ERR;
+  }
+
+  if (resource_identifier.length() <= 0)
+  {
+    SAS_LOG_ERROR("Error connecting to SAS - Resource Identifier is blank.");
+    return SAS_INIT_RC_ERR;
+  }
+
+  if (resource_identifier.length() >= MAX_RESOURCE_ID_LEN)
+  {
+    SAS_LOG_ERROR("Error connecting to SAS - Resource Identifier is too long.");
     return SAS_INIT_RC_ERR;
   }
 
