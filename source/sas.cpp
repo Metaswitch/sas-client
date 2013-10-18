@@ -67,19 +67,64 @@ const int MARKER_HDR_SIZE = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t
 
 const char* SAS_PORT = "6761";
 
+// MIN/MAX string lengths for init parameters.
+const int MAX_SYSTEM_LEN = 64;
+const int MAX_RESOURCE_ID_LEN = 255;
+
 
 std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
 SAS::Connection* SAS::_connection = NULL;
 SAS::sas_log_callback_t* SAS::_log_callback = NULL;
 
 
-void SAS::init(const std::string& system_name,
+int SAS::init(const std::string& system_name,
                const std::string& system_type,
                const std::string& resource_identifier,
                const std::string& sas_address,
                sas_log_callback_t* log_callback)
 {
   _log_callback = log_callback;
+
+  // Check the system and resource parameters are present and have the correct
+  // length.
+  if (system_name.length() <= 0)
+  {
+    SAS_LOG_ERROR("Error connecting to SAS - System name is blank.");
+    return SAS_INIT_RC_ERR;
+  }
+
+  if (system_name.length() > MAX_SYSTEM_LEN)
+  {
+    SAS_LOG_ERROR("Error connecting to SAS - System name is longer than %d characters.",
+                  MAX_SYSTEM_LEN);
+    return SAS_INIT_RC_ERR;
+  }
+
+  if (system_type.length() <= 0)
+  {
+    SAS_LOG_ERROR("Error connecting to SAS - System type is blank.");
+    return SAS_INIT_RC_ERR;
+  }
+
+  if (system_type.length() > MAX_SYSTEM_LEN)
+  {
+    SAS_LOG_ERROR("Error connecting to SAS - System type is longer than %d characters.",
+                  MAX_SYSTEM_LEN);
+    return SAS_INIT_RC_ERR;
+  }
+
+  if (resource_identifier.length() <= 0)
+  {
+    SAS_LOG_ERROR("Error connecting to SAS - Resource Identifier is blank.");
+    return SAS_INIT_RC_ERR;
+  }
+
+  if (resource_identifier.length() > MAX_RESOURCE_ID_LEN)
+  {
+    SAS_LOG_ERROR("Error connecting to SAS - Resource Identifier is longer than %d characters.",
+                  MAX_RESOURCE_ID_LEN);
+    return SAS_INIT_RC_ERR;
+  }
 
   if (sas_address != "0.0.0.0")
   {
@@ -88,6 +133,8 @@ void SAS::init(const std::string& system_name,
                                  resource_identifier,
                                  sas_address);
   }
+
+  return SAS_INIT_RC_OK;
 }
 
 
@@ -110,6 +157,9 @@ SAS::Connection::Connection(const std::string& system_name,
   _writer(0),
   _sock(-1)
 {
+  // Open the queue for input
+  _msg_q.open();
+
   // Spawn a thread to open and write to the SAS connection.
   int rc = pthread_create(&_writer, NULL, &writer_thread, this);
 
@@ -155,9 +205,6 @@ void SAS::Connection::writer()
 
     if (connect_init())
     {
-      // Open the queue for input
-      _msg_q.open();
-
       // Now can start dequeuing and sending data.
       std::string msg;
       while ((_sock != -1) && (_msg_q.pop(msg)))
@@ -196,10 +243,6 @@ void SAS::Connection::writer()
           }
         }
       }
-
-      // Close the input queue and purge it.
-      _msg_q.close();
-      _msg_q.purge();
 
       // Terminate the socket.
       ::close(_sock);

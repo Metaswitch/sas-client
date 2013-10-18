@@ -56,6 +56,29 @@
 #include "eventq.h"
 
 
+// Marker IDs
+static const int MARKER_ID_START = 0x01000003;
+static const int MARKER_ID_END = 0x01000004;
+static const int MARKER_ID_DAILED_DIGITS = 0x01000005;
+static const int MARKER_ID_CALLING_DN = 0x01000006;
+static const int MARKER_ID_CALLED_DN = 0x01000007;
+static const int MARKER_ID_SIP_REGISTRATION = 0x010B0004;
+static const int MARKER_ID_SIP_ALL_REGISTER = 0x010B0005;
+static const int MARKER_ID_SIP_CALL_ID = 0x010C0001;
+static const int MARKER_ID_IMS_CHARGING_ID = 0x010C0002;
+static const int MARKER_ID_VIA_BRANCH_PARAM = 0x010C0003;
+
+static const int MARKER_ID_OUTBOUND_CALLING_URI = 0x05000003;
+static const int MARKER_ID_INBOUND_CALLING_URI = 0x05000004;
+static const int MARKER_ID_OUTBOUND_CALLED_URI = 0x05000005;
+static const int MARKER_ID_INBOUND_CALLED_URI = 0x05000006;
+
+static const int MARKER_ID_PROTOCOL_ERROR = 0x01000001;
+
+// SAS::init return codes
+static const int SAS_INIT_RC_OK = 0;
+static const int SAS_INIT_RC_ERR = 1;
+
 class SAS
 {
 public:
@@ -160,7 +183,7 @@ public:
     {
       None = 0,
       Branch = 1,
-      TrailGroup = 2
+      Trace = 2
     };
 
     std::string to_string(Scope scope) const;
@@ -195,7 +218,7 @@ public:
                            const char *fmt,
                            ...);
 
-  static void init(const std::string& system_name,
+  static int init(const std::string& system_name,
                    const std::string& system_type,
                    const std::string& resource_identifier,
                    const std::string& sas_address,
