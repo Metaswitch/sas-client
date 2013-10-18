@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# @file configure Simple configuratiohn script for building the SAS client
+# @file configure Simple configuration script for building the SAS client
 # library.
 #
 # Service Assurance Server client library
