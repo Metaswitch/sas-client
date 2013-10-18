@@ -93,7 +93,8 @@ int SAS::init(const std::string& system_name,
 
   if (system_name.length() > MAX_SYSTEM_LEN)
   {
-    SAS_LOG_ERROR("Error connecting to SAS - System name is too long.");
+    SAS_LOG_ERROR("Error connecting to SAS - System name is longer than %d characters.",
+                  MAX_SYSTEM_LEN);
     return SAS_INIT_RC_ERR;
   }
 
@@ -105,7 +106,8 @@ int SAS::init(const std::string& system_name,
 
   if (system_type.length() > MAX_SYSTEM_LEN)
   {
-    SAS_LOG_ERROR("Error connecting to SAS - System type is too long.");
+    SAS_LOG_ERROR("Error connecting to SAS - System type is longer than %d characters.",
+                  MAX_SYSTEM_LEN);
     return SAS_INIT_RC_ERR;
   }
 
@@ -117,7 +119,8 @@ int SAS::init(const std::string& system_name,
 
   if (resource_identifier.length() > MAX_RESOURCE_ID_LEN)
   {
-    SAS_LOG_ERROR("Error connecting to SAS - Resource Identifier is too long.");
+    SAS_LOG_ERROR("Error connecting to SAS - Resource Identifier is longer than %d characters.",
+                  MAX_RESOURCE_ID_LEN);
     return SAS_INIT_RC_ERR;
   }
 
