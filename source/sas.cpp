@@ -215,10 +215,6 @@ void SAS::Connection::writer()
         }
       }
 
-      // Close the input queue and purge it.
-      _msg_q.close();
-      _msg_q.purge();
-
       // Terminate the socket.
       ::close(_sock);
 
@@ -242,9 +238,6 @@ void SAS::Connection::writer()
       // Received a termination signal on the queue, so exit.
       break;
     }
-
-    // Reopen the queue for input
-    _msg_q.open();
   }
 }
 
