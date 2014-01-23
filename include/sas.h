@@ -150,6 +150,9 @@ public:
         uint8_t* ptr;
       } var_data[MAX_NUM_VAR_PARAMS];
     } _msg;
+
+    const int get_message_length(const int header_size) const;
+    void write_static_and_var_data(std::string& s) const;
   };
 
   class Event : public Message
@@ -187,6 +190,19 @@ public:
     };
 
     std::string to_string(Scope scope) const;
+  };
+
+  class Stat : public Message
+  {
+  public:
+    inline Stat(uint32_t stat_id) :
+      Message(NULL,
+              ((stat_id & 0x00FFFFFF) | 0x0F000000),
+              0)
+    {
+    }
+
+    std::string to_string() const;
   };
 
   enum log_level_t {
@@ -227,6 +243,7 @@ public:
   static TrailId new_trail(uint32_t instance);
   static void report_event(const Event& event);
   static void report_marker(const Marker& marker, Marker::Scope scope=Marker::Scope::None);
+  static void report_stat(const Stat& stat);
 
 private:
   class Connection

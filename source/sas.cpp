@@ -58,12 +58,14 @@
 const int SAS_MSG_INIT   = 1;
 const int SAS_MSG_EVENT  = 3;
 const int SAS_MSG_MARKER = 4;
+const int SAS_MSG_STAT   = 6;
 
 // SAS message header sizes
 const int COMMON_HDR_SIZE = sizeof(uint16_t) + sizeof(uint8_t) + sizeof(uint8_t) + sizeof(uint64_t);
 const int INIT_HDR_SIZE   = COMMON_HDR_SIZE;
 const int EVENT_HDR_SIZE  = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint16_t);
 const int MARKER_HDR_SIZE = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint8_t) + sizeof(uint16_t);
+const int STAT_HDR_SIZE   = COMMON_HDR_SIZE + sizeof(uint32_t) + sizeof(uint16_t);
 
 const char* SAS_PORT = "6761";
 
@@ -426,6 +428,15 @@ void SAS::report_marker(const Marker& marker, Marker::Scope scope)
 }
 
 
+void SAS::report_stat(const Stat& stat)
+{
+  if (_connection)
+  {
+    _connection->send_msg(stat.to_string());
+  }
+}
+
+
 void SAS::write_hdr(std::string& s, uint16_t msg_length, uint8_t msg_type)
 {
   SAS::write_int16(s, msg_length);
@@ -487,20 +498,20 @@ void SAS::write_trail(std::string& s, TrailId trail)
 }
 
 
-std::string SAS::Event::to_string() const
+const int SAS::Message::get_message_length(const int header_size) const
 {
-  std::string s;
-  int msg_length = EVENT_HDR_SIZE + _msg.hdr.static_data_len;
+  int msg_length = header_size + _msg.hdr.static_data_len;
   for (uint32_t ii = 0; ii < _msg.hdr.num_var_data; ++ii)
   {
     msg_length += sizeof(uint16_t) + _msg.var_data[ii].len;
   }
-  s.reserve(msg_length);
 
-  SAS::write_hdr(s, msg_length, SAS_MSG_EVENT);
-  write_trail(s, _trail);
-  write_int32(s, _msg.hdr.id);
-  write_int32(s, _msg.hdr.instance);
+  return msg_length;
+}
+
+
+void SAS::Message::write_static_and_var_data(std::string& s) const
+{
   write_int16(s, _msg.hdr.static_data_len);
   for (uint32_t ii = 0; ii < _msg.hdr.static_data_len / 4; ++ii)
   {
@@ -512,6 +523,20 @@ std::string SAS::Event::to_string() const
     write_int16(s, _msg.var_data[ii].len);
     write_data(s, _msg.var_data[ii].len, (char *)_msg.var_data[ii].ptr);
   }
+}
+
+
+std::string SAS::Event::to_string() const
+{
+  std::string s;
+  int msg_length = get_message_length(EVENT_HDR_SIZE);
+  s.reserve(msg_length);
+
+  SAS::write_hdr(s, msg_length, SAS_MSG_EVENT);
+  write_trail(s, _trail);
+  write_int32(s, _msg.hdr.id);
+  write_int32(s, _msg.hdr.instance);
+  write_static_and_var_data(s);
 
   return s;
 }
@@ -520,31 +545,30 @@ std::string SAS::Event::to_string() const
 std::string SAS::Marker::to_string(Marker::Scope scope) const
 {
   std::string s;
-
-  int msg_length = MARKER_HDR_SIZE + _msg.hdr.static_data_len;
-  for (uint32_t ii = 0; ii < _msg.hdr.num_var_data; ++ii)
-  {
-    msg_length += sizeof(uint16_t) + _msg.var_data[ii].len;
-  }
+  int msg_length = get_message_length(MARKER_HDR_SIZE);
   s.reserve(msg_length);
 
-  write_hdr(s, msg_length, SAS_MSG_MARKER);
+  SAS::write_hdr(s, msg_length, SAS_MSG_MARKER);
   write_trail(s, _trail);
   write_int32(s, _msg.hdr.id);
   write_int32(s, _msg.hdr.instance);
   write_int8(s, (uint8_t)(scope != Scope::None));
   write_int8(s, (uint8_t)scope);
-  write_int16(s, _msg.hdr.static_data_len);
-  for (uint32_t ii = 0; ii < _msg.hdr.static_data_len / 4; ++ii)
-  {
-    // Static parameters are written in native byte order, not network order.
-    write_data(s, sizeof(uint32_t), (char *)&_msg.static_data[ii]);
-  }
-  for (uint32_t ii = 0; ii < _msg.hdr.num_var_data; ++ii)
-  {
-    write_int16(s, _msg.var_data[ii].len);
-    write_data(s, _msg.var_data[ii].len, (char *)_msg.var_data[ii].ptr);
-  }
+  write_static_and_var_data(s);
+
+  return s;
+}
+
+
+std::string SAS::Stat::to_string() const
+{
+  std::string s;
+  int msg_length = get_message_length(STAT_HDR_SIZE);
+  s.reserve(msg_length);
+
+  SAS::write_hdr(s, msg_length, SAS_MSG_STAT);
+  write_int32(s, _msg.hdr.id);
+  write_static_and_var_data(s);
 
   return s;
 }
