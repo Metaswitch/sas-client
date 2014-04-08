@@ -45,15 +45,6 @@
 #include "sas.h"
 
 
-#define SAS_LOG_ERROR(...) SAS_LOG(SAS::LOG_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_WARNING(...) SAS_LOG(SAS::LOG_LEVEL_WARNING, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_STATUS(...) SAS_LOG(SAS::LOG_LEVEL_STATUS, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_INFO(...) SAS_LOG(SAS::LOG_LEVEL_INFO, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_VERBOSE(...) SAS_LOG(SAS::LOG_LEVEL_VERBOSE, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_DEBUG(...) SAS_LOG(SAS::LOG_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
-
-#define SAS_LOG(...) _log_callback(__VA_ARGS__)
-
 // SAS message types.
 const int SAS_MSG_INIT   = 1;
 const int SAS_MSG_EVENT  = 3;
@@ -349,7 +340,9 @@ bool SAS::Connection::connect_init()
   SAS_LOG_DEBUG("Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
 
   // Send an init message to SAS.
-  std::string init;
+  uint8_t init_msg_buf[MAX_MSG_SIZE];
+  uint8_t* write_ptr = init_msg_buf;
+
   std::string version("v0.1");
 
   // The resource version is part of the binary protocol but is not currently
@@ -363,24 +356,24 @@ bool SAS::Connection::connect_init()
                  sizeof(uint8_t) + _system_type.length() +
                  sizeof(uint8_t) + _resource_identifier.length() +
                  sizeof(uint8_t) + resource_version.length();
-  init.reserve(init_len);
-  write_hdr(init, init_len, SAS_MSG_INIT);
-  write_int8(init, (uint8_t)_system_name.length());
-  write_data(init, _system_name.length(), _system_name.data());
+
+  write_hdr(write_ptr, init_len, SAS_MSG_INIT);
+  write_int8(write_ptr, (uint8_t)_system_name.length());
+  write_data(write_ptr, _system_name.length(), _system_name.data());
   int endianness = 1;
-  init.append((char*)&endianness, sizeof(int));     // Endianness must be written in machine order.
-  write_int8(init, version.length());
-  write_data(init, version.length(), version.data());
-  write_int8(init, (uint8_t)_system_type.length());
-  write_data(init, _system_type.length(), _system_type.data());
-  write_int8(init, (uint8_t)_resource_identifier.length());
-  write_data(init, _resource_identifier.length(), _resource_identifier.data());
-  write_int8(init, (uint8_t)resource_version.length());
-  write_data(init, resource_version.length(), resource_version.data());
+  write_data(write_ptr, sizeof(int), (char*)&endianness);     // Endianness must be written in machine order.
+  write_int8(write_ptr, version.length());
+  write_data(write_ptr, version.length(), version.data());
+  write_int8(write_ptr, (uint8_t)_system_type.length());
+  write_data(write_ptr, _system_type.length(), _system_type.data());
+  write_int8(write_ptr, (uint8_t)_resource_identifier.length());
+  write_data(write_ptr, _resource_identifier.length(), _resource_identifier.data());
+  write_int8(write_ptr, (uint8_t)resource_version.length());
+  write_data(write_ptr, resource_version.length(), resource_version.data());
 
   SAS_LOG_DEBUG("Sending SAS INIT message");
 
-  rc = ::send(_sock, init.data(), init.length(), 0);
+  rc = ::send(_sock, init_msg_buf, (write_ptr - init_msg_buf), 0);
   if (rc < 0)
   {
     SAS_LOG_ERROR("SAS connection to %s:%s failed: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
@@ -408,7 +401,7 @@ SAS::TrailId SAS::new_trail(uint32_t instance)
 }
 
 
-void SAS::report_event(const Event& event)
+void SAS::report_event(Event& event)
 {
   if (_connection)
   {
@@ -417,7 +410,7 @@ void SAS::report_event(const Event& event)
 }
 
 
-void SAS::report_marker(const Marker& marker, Marker::Scope scope)
+void SAS::report_marker(Marker& marker, Marker::Scope scope)
 {
   if (_connection)
   {
@@ -426,125 +419,159 @@ void SAS::report_marker(const Marker& marker, Marker::Scope scope)
 }
 
 
-void SAS::write_hdr(std::string& s, uint16_t msg_length, uint8_t msg_type)
+void SAS::write_hdr(uint8_t*& write_ptr, uint16_t msg_length, uint8_t msg_type)
 {
-  SAS::write_int16(s, msg_length);
-  SAS::write_int8(s, 3);             // Version = 3
-  SAS::write_int8(s, msg_type);
-  SAS::write_timestamp(s);
+  SAS::write_int16(write_ptr, msg_length);
+  SAS::write_int8(write_ptr, 3);             // Version = 3
+  SAS::write_int8(write_ptr, msg_type);
+  SAS::write_timestamp(write_ptr);
 }
 
 
-void SAS::write_int8(std::string& s, uint8_t c)
+void SAS::write_int8(uint8_t*& write_ptr, uint8_t c)
 {
-  s.append((char*)&c, sizeof(uint8_t));
+  write_data(write_ptr, sizeof(uint8_t), (char*)&c);
 }
 
 
-void SAS::write_int16(std::string& s, uint16_t v)
+void SAS::write_int16(uint8_t*& write_ptr, uint16_t v)
 {
   uint16_t v_nw = htons(v);
-  s.append((char*)&v_nw, sizeof(uint16_t));
+  write_data(write_ptr, sizeof(uint16_t), (char*)&v_nw);
 }
 
 
-void SAS::write_int32(std::string& s, uint32_t v)
+void SAS::write_int32(uint8_t*& write_ptr, uint32_t v)
 {
   uint32_t v_nw = htonl(v);
-  s.append((char*)&v_nw, sizeof(uint32_t));
+  write_data(write_ptr, sizeof(uint32_t), (char*)&v_nw);
 }
 
 
-void SAS::write_int64(std::string& s, uint64_t v)
+void SAS::write_int64(uint8_t*& write_ptr, uint64_t v)
 {
   uint32_t vh_nw = htonl(v >> 32);
   uint32_t vl_nw = htonl(v & 0xffffffff);
-  s.append((char*)&vh_nw, sizeof(uint32_t));
-  s.append((char*)&vl_nw, sizeof(uint32_t));
+  write_data(write_ptr, sizeof(uint32_t), (char*)&vh_nw);
+  write_data(write_ptr, sizeof(uint32_t), (char*)&vl_nw);
 }
 
 
-void SAS::write_data(std::string& s, size_t len, const char* data)
+void SAS::write_data(uint8_t*& write_ptr, size_t len, const char* data)
 {
-  s.append(data, len);
+  memcpy(write_ptr, data, len);
+  write_ptr += len;
 }
 
 
-void SAS::write_timestamp(std::string& s)
+void SAS::write_timestamp(uint8_t*& write_ptr)
 {
   unsigned long long timestamp;
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
   timestamp = ts.tv_sec;
   timestamp = timestamp * 1000 + (ts.tv_nsec / 1000000);
-  write_int64(s, timestamp);
+  write_int64(write_ptr, timestamp);
 }
 
 
-void SAS::write_trail(std::string& s, TrailId trail)
+void SAS::write_trail(uint8_t*& write_ptr, TrailId trail)
 {
-  write_int64(s, trail);
+  write_int64(write_ptr, trail);
 }
 
 
-std::string SAS::Event::to_string() const
+SAS::Message& SAS::Message::add_static_param(uint32_t param)
+{
+  if ((_buffer_len + 4) <= _buffer_size)
+  {
+    // There is space for the parameter - work out where it goes.
+    uint8_t* write_ptr = _buffer + _params_offset + (_num_static_data * 4);
+
+    // If we already have variable length parameters, shuffle them along in
+    // memory.
+    if (write_ptr < (_buffer + _buffer_len))
+    {
+      memmove(write_ptr, write_ptr + 4, (_buffer_len - (write_ptr - _buffer)));
+    }
+
+    // Static parameters are written in native byte order, not network order.
+    write_data(write_ptr, sizeof(uint32_t), (char*)&param);
+    _num_static_data++;
+    _buffer_len += 4;
+
+    // Write the new length of the static data.
+    write_ptr = _buffer + _params_offset;
+    write_int16(write_ptr, (_num_static_data * 4));
+  }
+  else
+  {
+    SAS_LOG_WARNING("Insufficient space for static param"
+                    " Required: 4 bytes,"
+                    " Available: %lu bytes",
+                    (_buffer_size - _buffer_len));
+  }
+
+  return *this;
+}
+
+
+SAS::Message& SAS::Message::add_var_param(size_t len, uint8_t* data)
+{
+  if ((_buffer_len + len + 2) <= _buffer_size)
+  {
+    // There is space for the parameter, so write it. Note that variable
+    // params go after static params, so this param should go at the end.
+    uint8_t *write_ptr = _buffer + _buffer_len;
+    write_int16(write_ptr, len);
+    write_data(write_ptr, len, (char*)data);
+
+    _var_data_lengths[_num_var_data] = len;
+    _num_var_data++;
+
+    _buffer_len = (write_ptr - _buffer);
+  }
+  else
+  {
+    SAS_LOG_WARNING("Insufficient space for var param"
+                    " Required: %lu + 2 bytes,"
+                    " Available: %lu bytes",
+                    len, (_buffer_size - _buffer_len));
+  }
+
+  return *this;
+}
+
+
+std::string SAS::Event::to_string()
 {
   std::string s;
-  int msg_length = EVENT_HDR_SIZE + _msg.hdr.static_data_len;
-  for (uint32_t ii = 0; ii < _msg.hdr.num_var_data; ++ii)
-  {
-    msg_length += sizeof(uint16_t) + _msg.var_data[ii].len;
-  }
-  s.reserve(msg_length);
+  uint8_t* write_ptr = _buffer;
 
-  SAS::write_hdr(s, msg_length, SAS_MSG_EVENT);
-  write_trail(s, _trail);
-  write_int32(s, _msg.hdr.id);
-  write_int32(s, _msg.hdr.instance);
-  write_int16(s, _msg.hdr.static_data_len);
-  for (uint32_t ii = 0; ii < _msg.hdr.static_data_len / 4; ++ii)
-  {
-    // Static parameters are written in native byte order, not network order.
-    write_data(s, sizeof(uint32_t), (char *)&_msg.static_data[ii]);
-  }
-  for (uint32_t ii = 0; ii < _msg.hdr.num_var_data; ++ii)
-  {
-    write_int16(s, _msg.var_data[ii].len);
-    write_data(s, _msg.var_data[ii].len, (char *)_msg.var_data[ii].ptr);
-  }
+  write_hdr(write_ptr, _buffer_len, SAS_MSG_EVENT);
+  write_trail(write_ptr, _trail);
+  write_int32(write_ptr, _id);
+  write_int32(write_ptr, _instance);
+
+  s.assign((char*)_buffer, _buffer_len);
 
   return s;
 }
 
 
-std::string SAS::Marker::to_string(Marker::Scope scope) const
+std::string SAS::Marker::to_string(Marker::Scope scope)
 {
   std::string s;
+  uint8_t* write_ptr = _buffer;
 
-  int msg_length = MARKER_HDR_SIZE + _msg.hdr.static_data_len;
-  for (uint32_t ii = 0; ii < _msg.hdr.num_var_data; ++ii)
-  {
-    msg_length += sizeof(uint16_t) + _msg.var_data[ii].len;
-  }
-  s.reserve(msg_length);
+  write_hdr(write_ptr, _buffer_len, SAS_MSG_MARKER);
+  write_trail(write_ptr, _trail);
+  write_int32(write_ptr, _id);
+  write_int32(write_ptr, _instance);
+  write_int8(write_ptr, (uint8_t)(scope != Scope::None));
+  write_int8(write_ptr, (uint8_t)scope);
 
-  write_hdr(s, msg_length, SAS_MSG_MARKER);
-  write_trail(s, _trail);
-  write_int32(s, _msg.hdr.id);
-  write_int32(s, _msg.hdr.instance);
-  write_int8(s, (uint8_t)(scope != Scope::None));
-  write_int8(s, (uint8_t)scope);
-  write_int16(s, _msg.hdr.static_data_len);
-  for (uint32_t ii = 0; ii < _msg.hdr.static_data_len / 4; ++ii)
-  {
-    // Static parameters are written in native byte order, not network order.
-    write_data(s, sizeof(uint32_t), (char *)&_msg.static_data[ii]);
-  }
-  for (uint32_t ii = 0; ii < _msg.hdr.num_var_data; ++ii)
-  {
-    write_int16(s, _msg.var_data[ii].len);
-    write_data(s, _msg.var_data[ii].len, (char *)_msg.var_data[ii].ptr);
-  }
+  s.assign((char*)_buffer, _buffer_len);
 
   return s;
 }
