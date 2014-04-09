@@ -486,13 +486,13 @@ SAS::Message& SAS::Message::add_static_param(uint32_t param)
   if ((_buffer_len + 4) <= _buffer_size)
   {
     // There is space for the parameter - work out where it goes.
-    uint8_t* write_ptr = _buffer + _params_offset + (_num_static_data * 4);
+    uint8_t* write_ptr = _buffer + _params_offset + 2 + (_num_static_data * 4);
 
     // If we already have variable length parameters, shuffle them along in
     // memory.
     if (write_ptr < (_buffer + _buffer_len))
     {
-      memmove(write_ptr, write_ptr + 4, (_buffer_len - (write_ptr - _buffer)));
+      memmove(write_ptr + 4, write_ptr, (_buffer_len - (write_ptr - _buffer)));
     }
 
     // Static parameters are written in native byte order, not network order.
@@ -518,25 +518,33 @@ SAS::Message& SAS::Message::add_static_param(uint32_t param)
 
 SAS::Message& SAS::Message::add_var_param(size_t len, uint8_t* data)
 {
-  if ((_buffer_len + len + 2) <= _buffer_size)
+  if (_num_var_data < MAX_NUM_VAR_PARAMS)
   {
-    // There is space for the parameter, so write it. Note that variable
-    // params go after static params, so this param should go at the end.
-    uint8_t *write_ptr = _buffer + _buffer_len;
-    write_int16(write_ptr, len);
-    write_data(write_ptr, len, (char*)data);
+    if ((_buffer_len + len + 2) <= _buffer_size)
+    {
+      // There is space for the parameter, so write it. Note that variable
+      // params go after static params, so this param should go at the end.
+      uint8_t *write_ptr = _buffer + _buffer_len;
+      write_int16(write_ptr, len);
+      write_data(write_ptr, len, (char*)data);
 
-    _var_data_lengths[_num_var_data] = len;
-    _num_var_data++;
+      _var_data_lengths[_num_var_data] = len;
+      _num_var_data++;
 
-    _buffer_len = (write_ptr - _buffer);
+      _buffer_len = (write_ptr - _buffer);
+    }
+    else
+    {
+      SAS_LOG_WARNING("Insufficient space for var param"
+                      " Required: %lu + 2 bytes,"
+                      " Available: %lu bytes",
+                      len, (_buffer_size - _buffer_len));
+    }
   }
   else
   {
-    SAS_LOG_WARNING("Insufficient space for var param"
-                    " Required: %lu + 2 bytes,"
-                    " Available: %lu bytes",
-                    len, (_buffer_size - _buffer_len));
+    SAS_LOG_WARNING("Cannot add var param (only %d permitted)",
+                    MAX_NUM_VAR_PARAMS);
   }
 
   return *this;

@@ -114,14 +114,19 @@ public:
                    uint32_t instance,
                    uint32_t params_offset) :
       _buffer_size(MAX_MSG_SIZE),
-      _buffer_len(0),
+      _buffer_len(params_offset),
       _params_offset(params_offset),
       _trail(trail),
       _id(id),
       _instance(instance),
       _num_static_data(0),
       _num_var_data(0)
-    {}
+    {
+      // Write the length of the static data (0 for a new Message).
+      uint8_t* write_ptr = _buffer + _params_offset;
+      write_int16(write_ptr, 0);
+      _buffer_len += 2;
+    }
 
     Message& add_static_param(uint32_t param);
 
