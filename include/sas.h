@@ -93,45 +93,53 @@ public:
     inline Message(TrailId trail,
                    uint32_t id,
                    uint32_t instance) :
-      _params_buffer(),
+      _static_params(),
+      _var_params(),
       _trail(trail),
       _id(id),
       _instance(instance),
       _num_static_data(0),
       _num_var_data(0)
     {
-      // Write the length of the static data into the params buffer (0 for a
-      // new Message).
-      write_int16(_params_buffer, 0);
     }
 
     virtual ~Message()
     {
     }
 
-    Message& add_static_param(uint32_t param);
-
-    Message& add_var_param(size_t len, uint8_t* data);
-
-    inline Message& add_var_param(size_t len, char* s)
+    inline Message& add_static_param(uint32_t param)
     {
-      return add_var_param(len, (uint8_t*)s);
-    }
-
-    inline Message& add_var_param(const char* s)
-    {
-      return add_var_param(strlen(s), (uint8_t*)s);
+      _static_params.push_back(param);
+      return *this;
     }
 
     inline Message& add_var_param(const std::string& s)
     {
-      return add_var_param(s.length(), (uint8_t*)s.data());
+      _var_params.push_back(s);
+      return *this;
+    }
+
+    inline Message& add_var_param(size_t len, char* s)
+    {
+      std::string local_str(s, len);
+      return add_var_param(local_str);
+    }
+
+    inline Message& add_var_param(const char* s)
+    {
+      std::string local_str(s);
+      return add_var_param(local_str);
     }
 
     friend class SAS;
 
+  protected:
+    size_t params_buf_len() const;
+    void write_params(std::string& s) const;
+
   private:
-    std::string _params_buffer;
+    std::vector<uint32_t> _static_params;
+    std::vector<std::string> _var_params;
 
     TrailId _trail;
     uint32_t _id;

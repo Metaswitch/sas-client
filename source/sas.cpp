@@ -508,41 +508,45 @@ void SAS::write_trail(std::string& s, TrailId trail)
 }
 
 
-SAS::Message& SAS::Message::add_static_param(uint32_t param)
+size_t SAS::Message::params_buf_len() const
 {
-  // Work out where the parameter goes in the parameter buffer.
-  size_t offset = 2 + (_num_static_data * 4);
+  size_t len;
+  len = 2 + (_static_params.size() * sizeof(uint32_t));
 
-  // Insert the parameter. Static parameters are written in native byte order,
-  // not network order.
-  _params_buffer.insert(offset, (char*)&param, sizeof(param));
-  _num_static_data++;
-
-  // Write the new length of the static data.
-  uint16_t static_len_network;
-  static_len_network = htons(_num_static_data * sizeof(param));
-  _params_buffer.replace(0, 2, (char*)&static_len_network, sizeof(static_len_network));
-
-  return *this;
+  for(std::vector<std::string>::const_iterator it = _var_params.begin();
+      it != _var_params.end();
+      ++it)
+  {
+    len += 2 + it->size();
+  }
 }
 
 
-SAS::Message& SAS::Message::add_var_param(size_t len, uint8_t* data)
+void SAS::Message::write_params(std::string& s) const
 {
-  // Variable params go after static params, so this param should go at the end.
-  write_int16(_params_buffer, len);
-  write_data(_params_buffer, len, (char*)data);
+  write_int16(s, (_static_params.size() * 4));
+  for(std::vector<uint32_t>::const_iterator sp = _static_params.begin();
+      sp != _static_params.end();
+      ++sp)
+  {
+    // Static parameters are written in native byte order.
+    write_data(s, sizeof(*sp), (char*)&(*sp));
+  }
 
-  _var_data_lengths[_num_var_data] = len;
-  _num_var_data++;
-
-  return *this;
+  for(std::vector<std::string>::const_iterator vp = _var_params.begin();
+      vp != _var_params.end();
+      ++vp)
+  {
+    write_int16(s, vp->length());
+    write_data(s, vp->length(), vp->data());
+  }
 }
 
 
 std::string SAS::Event::to_string() const
 {
-  size_t len = EVENT_HDR_SIZE + _params_buffer.length();
+  size_t len = EVENT_HDR_SIZE + params_buf_len();
+
   std::string s;
   s.reserve(len);
 
@@ -550,16 +554,16 @@ std::string SAS::Event::to_string() const
   write_trail(s, _trail);
   write_int32(s, _id);
   write_int32(s, _instance);
+  write_params(s);
 
-  s.append(_params_buffer);
-
-  return s;
+  return std::move(s);
 }
 
 
 std::string SAS::Marker::to_string(Marker::Scope scope) const
 {
-  size_t len = MARKER_HDR_SIZE + _params_buffer.length();
+  size_t len = MARKER_HDR_SIZE + params_buf_len();
+
   std::string s;
   s.reserve(len);
 
@@ -569,10 +573,9 @@ std::string SAS::Marker::to_string(Marker::Scope scope) const
   write_int32(s, _instance);
   write_int8(s, (uint8_t)(scope != Scope::None));
   write_int8(s, (uint8_t)scope);
+  write_params(s);
 
-  s.append(_params_buffer);
-
-  return s;
+  return std::move(s);
 }
 
 
