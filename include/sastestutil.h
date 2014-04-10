@@ -185,7 +185,7 @@ namespace SasTest
     // -  All butes have been consumed. 
     // -  The buffer has the supplied length (which will usually have been
     //    parsed out of the first two bytes of the buffer). 
-    void parse_complete(int length)
+    void parse_complete(size_t length)
     {
       if (_offset != _buffer.length())
       {
@@ -204,13 +204,13 @@ namespace SasTest
       std::ostringstream oss;
 
       oss << "Static Params:" << std::endl;
-      for (int i = 0; i < static_params.size(); ++i)
+      for (size_t i = 0; i < static_params.size(); ++i)
       {
         oss << "  " << i << ":  " << static_params[i] << std::endl;
       }
 
       oss << "Variable Params:" << std::endl;
-      for (int i = 0; i < var_params.size(); ++i)
+      for (size_t i = 0; i < var_params.size(); ++i)
       {
         oss << "  " << i << ":  " << var_params[i] << std::endl;
       }
