@@ -130,10 +130,9 @@ public:
 
     friend class SAS;
 
-  protected:
+  private:
     std::string _params_buffer;
 
-  private:
     TrailId _trail;
     uint32_t _id;
     uint32_t _instance;
