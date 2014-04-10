@@ -113,6 +113,7 @@ public:
                    uint32_t id,
                    uint32_t instance,
                    uint32_t params_offset) :
+      _buffer(new uint8_t[MAX_MSG_SIZE]),
       _buffer_size(MAX_MSG_SIZE),
       _buffer_len(params_offset),
       _params_offset(params_offset),
@@ -126,6 +127,11 @@ public:
       uint8_t* write_ptr = _buffer + _params_offset;
       write_int16(write_ptr, 0);
       _buffer_len += 2;
+    }
+
+    virtual ~Message()
+    {
+      delete[] _buffer; _buffer = NULL;
     }
 
     Message& add_static_param(uint32_t param);
@@ -150,7 +156,7 @@ public:
     friend class SAS;
 
   protected:
-    uint8_t _buffer[MAX_MSG_SIZE];
+    uint8_t* _buffer;
     uint32_t _buffer_len;
     uint32_t _buffer_size;
 
