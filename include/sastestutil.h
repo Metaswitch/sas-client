@@ -49,7 +49,7 @@ namespace SasTest
   //
   // This is useful when working with STL strings which represent a sequence of
   // bytes. 
-  uint8_t to_byte(char c)
+  inline uint8_t to_byte(char c)
   {
     if (c >= 0)
     {
