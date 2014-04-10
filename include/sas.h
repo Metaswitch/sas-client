@@ -55,17 +55,6 @@
 
 #include "eventq.h"
 
-
-#define SAS_LOG_ERROR(...) SAS_LOG(SAS::LOG_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_WARNING(...) SAS_LOG(SAS::LOG_LEVEL_WARNING, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_STATUS(...) SAS_LOG(SAS::LOG_LEVEL_STATUS, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_INFO(...) SAS_LOG(SAS::LOG_LEVEL_INFO, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_VERBOSE(...) SAS_LOG(SAS::LOG_LEVEL_VERBOSE, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_DEBUG(...) SAS_LOG(SAS::LOG_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
-
-#define SAS_LOG(...) _log_callback(__VA_ARGS__)
-
-
 // Marker IDs
 static const int MARKER_ID_START = 0x01000003;
 static const int MARKER_ID_END = 0x01000004;
@@ -94,15 +83,6 @@ class SAS
 public:
   typedef uint64_t TrailId;
 
-  static const int MAX_MSG_SIZE = 0xFFFF;
-
-  // SAS message header consists of 12 bytes in total:
-  // - [ 2 bytes ] Message length.
-  // - [ 1 bytes ] Interface version.
-  // - [ 1 bytes ] Message type.
-  // - [ 8 bytes ] Timestamp.
-  static const int HEADER_LEN = 12;
-
   class Message
   {
   public:
@@ -111,27 +91,21 @@ public:
 
     inline Message(TrailId trail,
                    uint32_t id,
-                   uint32_t instance,
-                   uint32_t params_offset) :
-      _buffer(new uint8_t[MAX_MSG_SIZE]),
-      _buffer_size(MAX_MSG_SIZE),
-      _buffer_len(params_offset),
-      _params_offset(params_offset),
+                   uint32_t instance) :
+      _params_buffer(),
       _trail(trail),
       _id(id),
       _instance(instance),
       _num_static_data(0),
       _num_var_data(0)
     {
-      // Write the length of the static data (0 for a new Message).
-      uint8_t* write_ptr = _buffer + _params_offset;
-      write_int16(write_ptr, 0);
-      _buffer_len += 2;
+      // Write the length of the static data into the params buffer (0 for a
+      // new Message).
+      write_int16(_params_buffer, 0);
     }
 
     virtual ~Message()
     {
-      delete[] _buffer; _buffer = NULL;
     }
 
     Message& add_static_param(uint32_t param);
@@ -156,13 +130,9 @@ public:
     friend class SAS;
 
   protected:
-    uint8_t* _buffer;
-    uint32_t _buffer_len;
-    uint32_t _buffer_size;
+    std::string _params_buffer;
 
   private:
-    uint32_t _params_offset;
-
     TrailId _trail;
     uint32_t _id;
     uint32_t _instance;
@@ -175,12 +145,6 @@ public:
   class Event : public Message
   {
   public:
-    // Event headers consist of the standard SAS header, plus 16 bytes:
-    // - [ 8 bytes ] Trail ID.
-    // - [ 4 bytes ] Event ID.
-    // - [ 4 bytes ] Instance ID.
-    static const int PARAMS_OFFSET = HEADER_LEN + 16;
-
     // Event IDs as defined by the application are restricted to 24 bits.
     // This is because the top byte of the event ID is reserved and set to 0x0F.
     // It is comprised of:
@@ -190,8 +154,7 @@ public:
     inline Event(TrailId trail, uint32_t event, uint32_t instance) :
       Message(trail,
               ((event & 0x00FFFFFF) | 0x0F000000),
-              instance,
-              PARAMS_OFFSET)
+              instance)
     {
     }
 
@@ -201,16 +164,8 @@ public:
   class Marker : public Message
   {
   public:
-    // Marker headers consist of the standard SAS header, plus 16 bytes:
-    // - [ 8 bytes ] Trail ID.
-    // - [ 4 bytes ] Marker ID.
-    // - [ 4 bytes ] Instance ID.
-    // - [ 1 byte  ] Is correlating?
-    // - [ 1 bytes ] Correlation scope.
-    static const int PARAMS_OFFSET = HEADER_LEN + 18;
-
     inline Marker(TrailId trail, uint32_t marker, uint32_t instance) :
-      Message(trail, marker, instance, PARAMS_OFFSET)
+      Message(trail, marker, instance)
     {
     }
 
@@ -300,14 +255,14 @@ private:
     static const int MAX_MSG_QUEUE = 1000;
   };
 
-  static void write_hdr(uint8_t*& write_ptr, uint16_t msg_length, uint8_t msg_type);
-  static void write_int8(uint8_t*& write_ptr, uint8_t c);
-  static void write_int16(uint8_t*& write_ptr, uint16_t v);
-  static void write_int32(uint8_t*& write_ptr, uint32_t v);
-  static void write_int64(uint8_t*& write_ptr, uint64_t v);
-  static void write_data(uint8_t*& write_ptr, size_t length, const char* data);
-  static void write_timestamp(uint8_t*& write_ptr);
-  static void write_trail(uint8_t*& write_ptr, TrailId trail);
+  static void write_hdr(std::string& s, uint16_t msg_length, uint8_t msg_type);
+  static void write_int8(std::string& s, uint8_t c);
+  static void write_int16(std::string& s, uint16_t v);
+  static void write_int32(std::string& s, uint32_t v);
+  static void write_int64(std::string& s, uint64_t v);
+  static void write_data(std::string& s, size_t length, const char* data);
+  static void write_timestamp(std::string& s);
+  static void write_trail(std::string& s, TrailId trail);
 
   static std::atomic<TrailId> _next_trail_id;
   static Connection* _connection;
