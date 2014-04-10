@@ -125,6 +125,12 @@ public:
       return add_var_param(local_str);
     }
 
+    inline Message& add_var_param(size_t len, uint8_t* s)
+    {
+      std::string local_str((char *)s, len);
+      return add_var_param(local_str);
+    }
+
     inline Message& add_var_param(const char* s)
     {
       std::string local_str(s);
