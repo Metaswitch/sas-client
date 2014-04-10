@@ -370,6 +370,7 @@ bool SAS::Connection::connect_init()
   SAS_LOG_DEBUG("Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
 
   // Send an init message to SAS.
+  std::string init;
   std::string version("v0.1");
 
   // The resource version is part of the binary protocol but is not currently
@@ -383,27 +384,24 @@ bool SAS::Connection::connect_init()
                  sizeof(uint8_t) + _system_type.length() +
                  sizeof(uint8_t) + _resource_identifier.length() +
                  sizeof(uint8_t) + resource_version.length();
-
-  std::string buffer;
-  buffer.reserve(init_len);
-
-  write_hdr(buffer, init_len, SAS_MSG_INIT);
-  write_int8(buffer, (uint8_t)_system_name.length());
-  write_data(buffer, _system_name.length(), _system_name.data());
+  init.reserve(init_len);
+  write_hdr(init, init_len, SAS_MSG_INIT);
+  write_int8(init, (uint8_t)_system_name.length());
+  write_data(init, _system_name.length(), _system_name.data());
   int endianness = 1;
-  write_data(buffer, sizeof(int), (char*)&endianness);     // Endianness must be written in machine order.
-  write_int8(buffer, version.length());
-  write_data(buffer, version.length(), version.data());
-  write_int8(buffer, (uint8_t)_system_type.length());
-  write_data(buffer, _system_type.length(), _system_type.data());
-  write_int8(buffer, (uint8_t)_resource_identifier.length());
-  write_data(buffer, _resource_identifier.length(), _resource_identifier.data());
-  write_int8(buffer, (uint8_t)resource_version.length());
-  write_data(buffer, resource_version.length(), resource_version.data());
+  init.append((char*)&endianness, sizeof(int)); // Endianness must be written in machine order.
+  write_int8(init, version.length());
+  write_data(init, version.length(), version.data());
+  write_int8(init, (uint8_t)_system_type.length());
+  write_data(init, _system_type.length(), _system_type.data());
+  write_int8(init, (uint8_t)_resource_identifier.length());
+  write_data(init, _resource_identifier.length(), _resource_identifier.data());
+  write_int8(init, (uint8_t)resource_version.length());
+  write_data(init, resource_version.length(), resource_version.data());
 
   SAS_LOG_DEBUG("Sending SAS INIT message");
 
-  rc = ::send(_sock, buffer.data(), buffer.length(), 0);
+  rc = ::send(_sock, init.data(), init.length(), 0);
   if (rc < 0)
   {
     SAS_LOG_ERROR("SAS connection to %s:%s failed: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
@@ -431,7 +429,7 @@ SAS::TrailId SAS::new_trail(uint32_t instance)
 }
 
 
-void SAS::report_event(Event& event)
+void SAS::report_event(const Event& event)
 {
   if (_connection)
   {
@@ -440,7 +438,7 @@ void SAS::report_event(Event& event)
 }
 
 
-void SAS::report_marker(Marker& marker, Marker::Scope scope)
+void SAS::report_marker(const Marker& marker, Marker::Scope scope)
 {
   if (_connection)
   {
@@ -542,7 +540,7 @@ SAS::Message& SAS::Message::add_var_param(size_t len, uint8_t* data)
 }
 
 
-std::string SAS::Event::to_string()
+std::string SAS::Event::to_string() const
 {
   size_t len = EVENT_HDR_SIZE + _params_buffer.length();
   std::string s;
@@ -559,7 +557,7 @@ std::string SAS::Event::to_string()
 }
 
 
-std::string SAS::Marker::to_string(Marker::Scope scope)
+std::string SAS::Marker::to_string(Marker::Scope scope) const
 {
   size_t len = MARKER_HDR_SIZE + _params_buffer.length();
   std::string s;

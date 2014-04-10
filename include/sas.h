@@ -55,6 +55,7 @@
 
 #include "eventq.h"
 
+
 // Marker IDs
 static const int MARKER_ID_START = 0x01000003;
 static const int MARKER_ID_END = 0x01000004;
@@ -158,7 +159,7 @@ public:
     {
     }
 
-    std::string to_string();
+    std::string to_string() const;
   };
 
   class Marker : public Message
@@ -176,7 +177,7 @@ public:
       Trace = 2
     };
 
-    std::string to_string(Scope scope);
+    std::string to_string(Scope scope) const;
   };
 
   enum log_level_t {
@@ -215,8 +216,8 @@ public:
                    sas_log_callback_t* log_callback);
   static void term();
   static TrailId new_trail(uint32_t instance);
-  static void report_event(Event& event);
-  static void report_marker(Marker& marker, Marker::Scope scope=Marker::Scope::None);
+  static void report_event(const Event& event);
+  static void report_marker(const Marker& marker, Marker::Scope scope=Marker::Scope::None);
 
 private:
   class Connection
