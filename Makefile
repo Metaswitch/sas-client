@@ -21,6 +21,6 @@ clean:
 test: sas_test
 	./sas_test
 
-sas_test: libsas.a include/sastestutil.h source/ut/main.cpp
+sas_test: libsas.a source/ut/sastestutil.h source/ut/main.cpp
 	g++ source/ut/main.cpp -o sas_test -I include -std=c++0x -L. -lsas -lrt
 
