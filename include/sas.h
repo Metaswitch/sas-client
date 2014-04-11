@@ -93,13 +93,11 @@ public:
     inline Message(TrailId trail,
                    uint32_t id,
                    uint32_t instance) :
-      _static_params(),
-      _var_params(),
       _trail(trail),
       _id(id),
       _instance(instance),
-      _num_static_data(0),
-      _num_var_data(0)
+      _static_params(),
+      _var_params()
     {
     }
 
@@ -144,16 +142,11 @@ public:
     void write_params(std::string& s) const;
 
   private:
-    std::vector<uint32_t> _static_params;
-    std::vector<std::string> _var_params;
-
     TrailId _trail;
     uint32_t _id;
     uint32_t _instance;
-
-    uint32_t _num_static_data;
-    uint32_t _num_var_data;
-    uint32_t _var_data_lengths[MAX_NUM_VAR_PARAMS];
+    std::vector<uint32_t> _static_params;
+    std::vector<std::string> _var_params;
   };
 
   class Event : public Message

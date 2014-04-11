@@ -508,6 +508,8 @@ void SAS::write_trail(std::string& s, TrailId trail)
 }
 
 
+// Return the serialized length of the static and variable parameters (including
+// length fields).
 size_t SAS::Message::params_buf_len() const
 {
   size_t len;
@@ -522,6 +524,8 @@ size_t SAS::Message::params_buf_len() const
 }
 
 
+// Write the static and variable parameters (including length fields) to the
+// supplied string.
 void SAS::Message::write_params(std::string& s) const
 {
   write_int16(s, (_static_params.size() * 4));
