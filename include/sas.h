@@ -90,66 +90,63 @@ public:
     static const int MAX_NUM_STATIC_PARAMS = 20;
     static const int MAX_NUM_VAR_PARAMS = 20;
 
-    inline Message(TrailId trail, uint32_t id, uint32_t instance)
+    inline Message(TrailId trail,
+                   uint32_t id,
+                   uint32_t instance) :
+      _trail(trail),
+      _id(id),
+      _instance(instance),
+      _static_params(),
+      _var_params()
     {
-      _trail = trail;
-      _msg.hdr.id = id;
-      _msg.hdr.instance = instance;
-      _msg.hdr.static_data_len = 0;
-      _msg.hdr.num_var_data = 0;
-      _msg.hdr.var_data_array = _msg.var_data;
+    }
+
+    virtual ~Message()
+    {
     }
 
     inline Message& add_static_param(uint32_t param)
     {
-      _msg.static_data[_msg.hdr.static_data_len / sizeof(uint32_t)] = param;
-      _msg.hdr.static_data_len += sizeof(uint32_t);
+      _static_params.push_back(param);
       return *this;
     }
 
-    inline Message& add_var_param(size_t len, uint8_t* data)
+    inline Message& add_var_param(const std::string& s)
     {
-      _msg.var_data[_msg.hdr.num_var_data].len = (uint32_t)len;
-      _msg.var_data[_msg.hdr.num_var_data].ptr = data;
-      ++_msg.hdr.num_var_data;
+      _var_params.push_back(s);
       return *this;
     }
 
     inline Message& add_var_param(size_t len, char* s)
     {
-      return add_var_param(len, (uint8_t*)s);
+      std::string local_str(s, len);
+      return add_var_param(local_str);
     }
 
-    inline Message& add_var_param(char* s)
+    inline Message& add_var_param(size_t len, uint8_t* s)
     {
-      return add_var_param(strlen(s), (uint8_t*)s);
+      std::string local_str((char *)s, len);
+      return add_var_param(local_str);
     }
 
-    inline Message& add_var_param(const std::string& s)
+    inline Message& add_var_param(const char* s)
     {
-      return add_var_param(s.length(), (uint8_t*)s.data());
+      std::string local_str(s);
+      return add_var_param(local_str);
     }
 
     friend class SAS;
 
+  protected:
+    size_t params_buf_len() const;
+    void write_params(std::string& s) const;
+
   private:
     TrailId _trail;
-    struct
-    {
-      struct
-      {
-        uint32_t id;
-        uint32_t instance;
-        uint32_t static_data_len;
-        uint32_t num_var_data;
-        void* var_data_array;
-      } hdr;
-      uint32_t static_data[MAX_NUM_STATIC_PARAMS];
-      struct {
-        uint32_t len;
-        uint8_t* ptr;
-      } var_data[MAX_NUM_VAR_PARAMS];
-    } _msg;
+    uint32_t _id;
+    uint32_t _instance;
+    std::vector<uint32_t> _static_params;
+    std::vector<std::string> _var_params;
   };
 
   class Event : public Message

@@ -54,16 +54,37 @@
 
 #define SAS_LOG(...) _log_callback(__VA_ARGS__)
 
+
 // SAS message types.
 const int SAS_MSG_INIT   = 1;
 const int SAS_MSG_EVENT  = 3;
 const int SAS_MSG_MARKER = 4;
 
 // SAS message header sizes
+
+// SAS message header consists of 12 bytes in total:
+// - [ 2 bytes ] Message length.
+// - [ 1 bytes ] Interface version.
+// - [ 1 bytes ] Message type.
+// - [ 8 bytes ] Timestamp.
 const int COMMON_HDR_SIZE = sizeof(uint16_t) + sizeof(uint8_t) + sizeof(uint8_t) + sizeof(uint64_t);
+
+// Init headers are just the base header.
 const int INIT_HDR_SIZE   = COMMON_HDR_SIZE;
-const int EVENT_HDR_SIZE  = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint16_t);
-const int MARKER_HDR_SIZE = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint8_t) + sizeof(uint16_t);
+
+// Event headers consist of the standard SAS header, plus 16 bytes:
+// - [ 8 bytes ] Trail ID.
+// - [ 4 bytes ] Event ID.
+// - [ 4 bytes ] Instance ID.
+const int EVENT_HDR_SIZE  = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint32_t);
+
+// Marker headers consist of the standard SAS header, plus 16 bytes:
+// - [ 8 bytes ] Trail ID.
+// - [ 4 bytes ] Marker ID.
+// - [ 4 bytes ] Instance ID.
+// - [ 1 byte  ] Is correlating?
+// - [ 1 bytes ] Correlation scope.
+const int MARKER_HDR_SIZE = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint8_t);
 
 const char* SAS_PORT = "6761";
 
@@ -368,7 +389,7 @@ bool SAS::Connection::connect_init()
   write_int8(init, (uint8_t)_system_name.length());
   write_data(init, _system_name.length(), _system_name.data());
   int endianness = 1;
-  init.append((char*)&endianness, sizeof(int));     // Endianness must be written in machine order.
+  init.append((char*)&endianness, sizeof(int)); // Endianness must be written in machine order.
   write_int8(init, version.length());
   write_data(init, version.length(), version.data());
   write_int8(init, (uint8_t)_system_type.length());
@@ -437,21 +458,21 @@ void SAS::write_hdr(std::string& s, uint16_t msg_length, uint8_t msg_type)
 
 void SAS::write_int8(std::string& s, uint8_t c)
 {
-  s.append((char*)&c, sizeof(uint8_t));
+  write_data(s, sizeof(uint8_t), (char*)&c);
 }
 
 
 void SAS::write_int16(std::string& s, uint16_t v)
 {
   uint16_t v_nw = htons(v);
-  s.append((char*)&v_nw, sizeof(uint16_t));
+  write_data(s, sizeof(uint16_t), (char*)&v_nw);
 }
 
 
 void SAS::write_int32(std::string& s, uint32_t v)
 {
   uint32_t v_nw = htonl(v);
-  s.append((char*)&v_nw, sizeof(uint32_t));
+  write_data(s, sizeof(uint32_t), (char*)&v_nw);
 }
 
 
@@ -459,8 +480,8 @@ void SAS::write_int64(std::string& s, uint64_t v)
 {
   uint32_t vh_nw = htonl(v >> 32);
   uint32_t vl_nw = htonl(v & 0xffffffff);
-  s.append((char*)&vh_nw, sizeof(uint32_t));
-  s.append((char*)&vl_nw, sizeof(uint32_t));
+  write_data(s, sizeof(uint32_t), (char*)&vh_nw);
+  write_data(s, sizeof(uint32_t), (char*)&vl_nw);
 }
 
 
@@ -487,66 +508,78 @@ void SAS::write_trail(std::string& s, TrailId trail)
 }
 
 
+// Return the serialized length of the static and variable parameters (including
+// length fields).
+size_t SAS::Message::params_buf_len() const
+{
+  size_t len;
+  len = 2 + (_static_params.size() * sizeof(uint32_t));
+
+  for(std::vector<std::string>::const_iterator it = _var_params.begin();
+      it != _var_params.end();
+      ++it)
+  {
+    len += 2 + it->size();
+  }
+}
+
+
+// Write the static and variable parameters (including length fields) to the
+// supplied string.
+void SAS::Message::write_params(std::string& s) const
+{
+  write_int16(s, (_static_params.size() * 4));
+  for(std::vector<uint32_t>::const_iterator sp = _static_params.begin();
+      sp != _static_params.end();
+      ++sp)
+  {
+    // Static parameters are written in native byte order.
+    write_data(s, sizeof(*sp), (char*)&(*sp));
+  }
+
+  for(std::vector<std::string>::const_iterator vp = _var_params.begin();
+      vp != _var_params.end();
+      ++vp)
+  {
+    write_int16(s, vp->length());
+    write_data(s, vp->length(), vp->data());
+  }
+}
+
+
 std::string SAS::Event::to_string() const
 {
+  size_t len = EVENT_HDR_SIZE + params_buf_len();
+
   std::string s;
-  int msg_length = EVENT_HDR_SIZE + _msg.hdr.static_data_len;
-  for (uint32_t ii = 0; ii < _msg.hdr.num_var_data; ++ii)
-  {
-    msg_length += sizeof(uint16_t) + _msg.var_data[ii].len;
-  }
-  s.reserve(msg_length);
+  s.reserve(len);
 
-  SAS::write_hdr(s, msg_length, SAS_MSG_EVENT);
+  write_hdr(s, len, SAS_MSG_EVENT);
   write_trail(s, _trail);
-  write_int32(s, _msg.hdr.id);
-  write_int32(s, _msg.hdr.instance);
-  write_int16(s, _msg.hdr.static_data_len);
-  for (uint32_t ii = 0; ii < _msg.hdr.static_data_len / 4; ++ii)
-  {
-    // Static parameters are written in native byte order, not network order.
-    write_data(s, sizeof(uint32_t), (char *)&_msg.static_data[ii]);
-  }
-  for (uint32_t ii = 0; ii < _msg.hdr.num_var_data; ++ii)
-  {
-    write_int16(s, _msg.var_data[ii].len);
-    write_data(s, _msg.var_data[ii].len, (char *)_msg.var_data[ii].ptr);
-  }
+  write_int32(s, _id);
+  write_int32(s, _instance);
+  write_params(s);
 
-  return s;
+  return std::move(s);
 }
 
 
 std::string SAS::Marker::to_string(Marker::Scope scope) const
 {
+  size_t len = MARKER_HDR_SIZE + params_buf_len();
+
   std::string s;
+  s.reserve(len);
 
-  int msg_length = MARKER_HDR_SIZE + _msg.hdr.static_data_len;
-  for (uint32_t ii = 0; ii < _msg.hdr.num_var_data; ++ii)
-  {
-    msg_length += sizeof(uint16_t) + _msg.var_data[ii].len;
-  }
-  s.reserve(msg_length);
-
-  write_hdr(s, msg_length, SAS_MSG_MARKER);
+  write_hdr(s, len, SAS_MSG_MARKER);
   write_trail(s, _trail);
-  write_int32(s, _msg.hdr.id);
-  write_int32(s, _msg.hdr.instance);
+  write_int32(s, _id);
+  write_int32(s, _instance);
   write_int8(s, (uint8_t)(scope != Scope::None));
   write_int8(s, (uint8_t)scope);
-  write_int16(s, _msg.hdr.static_data_len);
-  for (uint32_t ii = 0; ii < _msg.hdr.static_data_len / 4; ++ii)
-  {
-    // Static parameters are written in native byte order, not network order.
-    write_data(s, sizeof(uint32_t), (char *)&_msg.static_data[ii]);
-  }
-  for (uint32_t ii = 0; ii < _msg.hdr.num_var_data; ++ii)
-  {
-    write_int16(s, _msg.var_data[ii].len);
-    write_data(s, _msg.var_data[ii].len, (char *)_msg.var_data[ii].ptr);
-  }
+  write_params(s);
 
-  return s;
+  return std::move(s);
 }
 
 

@@ -1,3 +1,4 @@
 *.o
 libsas.a
 include/config.h
+sas_test
