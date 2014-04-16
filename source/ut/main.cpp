@@ -90,7 +90,7 @@ std::string str_dump_hex(const std::string& s)
 {
   std::ostringstream oss;
   oss << "Offset: ";
-  for (int i = 0; i < s.length(); ++i)
+  for (size_t i = 0; i < s.length(); ++i)
   {
     oss << "|" << std::setw(3) << i;
   }
@@ -101,7 +101,7 @@ std::string str_dump_hex(const std::string& s)
   oss << "        " << divider << std::endl;
 
   oss << "Data:   ";
-  for (int i = 0; i < s.length(); ++i)
+  for (size_t i = 0; i < s.length(); ++i)
   {
     oss << "| " << std::hex << std::setw(2) << std::setfill('0') 
         << (unsigned int)SasTest::to_byte(s[i]);
@@ -116,7 +116,7 @@ std::string str_dump_hex(const std::string& s)
 namespace EventTest
 {
 
-bool test_empty()
+void test_empty()
 {
   SAS::Event event(111, 222, 333);
   std::string bytes = event.to_string();
@@ -134,7 +134,7 @@ bool test_empty()
   ASSERT_PRINT_BYTES(expected.var_params.empty(), bytes);
 }
 
-bool test_one_static_param()
+void test_one_static_param()
 {
   SAS::Event event(111, 222, 333);
   event.add_static_param(1000);
@@ -148,7 +148,7 @@ bool test_one_static_param()
   ASSERT_PRINT_BYTES(expected.var_params.size() == 0, bytes);
 }
 
-bool test_two_static_params()
+void test_two_static_params()
 {
   SAS::Event event(111, 222, 333);
   event.add_static_param(1000);
@@ -164,7 +164,7 @@ bool test_two_static_params()
   ASSERT_PRINT_BYTES(expected.var_params.size() == 0, bytes);
 }
 
-bool test_one_var_param()
+void test_one_var_param()
 {
   SAS::Event event(111, 222, 333);
   event.add_var_param("hello");
@@ -178,7 +178,7 @@ bool test_one_var_param()
   ASSERT_PRINT_BYTES(expected.var_params[0] == "hello", bytes);
 }
 
-bool test_two_var_params()
+void test_two_var_params()
 {
   SAS::Event event(111, 222, 333);
   event.add_var_param("hello");
@@ -194,7 +194,7 @@ bool test_two_var_params()
   ASSERT_PRINT_BYTES(expected.var_params[1] == "world", bytes);
 }
 
-bool test_static_then_var()
+void test_static_then_var()
 {
   SAS::Event event(111, 222, 333);
   event.add_static_param(1000);
@@ -210,7 +210,7 @@ bool test_static_then_var()
   ASSERT_PRINT_BYTES(expected.var_params[0] == "hello", bytes);
 }
 
-bool test_var_then_static()
+void test_var_then_static()
 {
   SAS::Event event(111, 222, 333);
   event.add_var_param("hello");
@@ -234,7 +234,7 @@ bool test_var_then_static()
 namespace MarkerTest
 {
 
-bool test_empty()
+void test_empty()
 {
   SAS::Marker marker(111, 222, 333);
   std::string bytes = marker.to_string(SAS::Marker::None);
@@ -253,7 +253,7 @@ bool test_empty()
   ASSERT_PRINT_BYTES(expected.var_params.empty(), bytes);
 }
 
-bool test_branch_scope_correlator()
+void test_branch_scope_correlator()
 {
   SAS::Marker marker(111, 222, 333);
   std::string bytes = marker.to_string(SAS::Marker::Branch);
@@ -265,7 +265,7 @@ bool test_branch_scope_correlator()
   ASSERT_PRINT_BYTES(expected.scope == 1, bytes);
 }
 
-bool test_trace_scope_correlator()
+void test_trace_scope_correlator()
 {
   SAS::Marker marker(111, 222, 333);
   std::string bytes = marker.to_string(SAS::Marker::Trace);
@@ -277,7 +277,7 @@ bool test_trace_scope_correlator()
   ASSERT_PRINT_BYTES(expected.scope == 2, bytes);
 }
 
-bool test_one_static_param()
+void test_one_static_param()
 {
   SAS::Marker marker(111, 222, 333);
   marker.add_static_param(1000);
@@ -291,7 +291,7 @@ bool test_one_static_param()
   ASSERT_PRINT_BYTES(expected.var_params.size() == 0, bytes);
 }
 
-bool test_two_static_params()
+void test_two_static_params()
 {
   SAS::Marker marker(111, 222, 333);
   marker.add_static_param(1000);
@@ -307,7 +307,7 @@ bool test_two_static_params()
   ASSERT_PRINT_BYTES(expected.var_params.size() == 0, bytes);
 }
 
-bool test_one_var_param()
+void test_one_var_param()
 {
   SAS::Marker marker(111, 222, 333);
   marker.add_var_param("hello");
@@ -321,7 +321,7 @@ bool test_one_var_param()
   ASSERT_PRINT_BYTES(expected.var_params[0] == "hello", bytes);
 }
 
-bool test_two_var_params()
+void test_two_var_params()
 {
   SAS::Marker marker(111, 222, 333);
   marker.add_var_param("hello");
@@ -337,7 +337,7 @@ bool test_two_var_params()
   ASSERT_PRINT_BYTES(expected.var_params[1] == "world", bytes);
 }
 
-bool test_static_then_var()
+void test_static_then_var()
 {
   SAS::Marker marker(111, 222, 333);
   marker.add_static_param(1000);
@@ -353,7 +353,7 @@ bool test_static_then_var()
   ASSERT_PRINT_BYTES(expected.var_params[0] == "hello", bytes);
 }
 
-bool test_var_then_static()
+void test_var_then_static()
 {
   SAS::Marker marker(111, 222, 333);
   marker.add_var_param("hello");

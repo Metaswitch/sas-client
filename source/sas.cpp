@@ -89,8 +89,8 @@ const int MARKER_HDR_SIZE = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t
 const char* SAS_PORT = "6761";
 
 // MIN/MAX string lengths for init parameters.
-const int MAX_SYSTEM_LEN = 64;
-const int MAX_RESOURCE_ID_LEN = 255;
+const unsigned int MAX_SYSTEM_LEN = 64;
+const unsigned int MAX_RESOURCE_ID_LEN = 255;
 
 
 std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
@@ -521,6 +521,8 @@ size_t SAS::Message::params_buf_len() const
   {
     len += 2 + it->size();
   }
+
+  return len;
 }
 
 
