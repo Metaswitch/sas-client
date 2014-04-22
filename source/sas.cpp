@@ -106,49 +106,49 @@ int SAS::init(const std::string& system_name,
 {
   _log_callback = log_callback;
 
-  // Check the system and resource parameters are present and have the correct
-  // length.
-  if (system_name.length() <= 0)
-  {
-    SAS_LOG_ERROR("Error connecting to SAS - System name is blank.");
-    return SAS_INIT_RC_ERR;
-  }
-
-  if (system_name.length() > MAX_SYSTEM_LEN)
-  {
-    SAS_LOG_ERROR("Error connecting to SAS - System name is longer than %d characters.",
-                  MAX_SYSTEM_LEN);
-    return SAS_INIT_RC_ERR;
-  }
-
-  if (system_type.length() <= 0)
-  {
-    SAS_LOG_ERROR("Error connecting to SAS - System type is blank.");
-    return SAS_INIT_RC_ERR;
-  }
-
-  if (system_type.length() > MAX_SYSTEM_LEN)
-  {
-    SAS_LOG_ERROR("Error connecting to SAS - System type is longer than %d characters.",
-                  MAX_SYSTEM_LEN);
-    return SAS_INIT_RC_ERR;
-  }
-
-  if (resource_identifier.length() <= 0)
-  {
-    SAS_LOG_ERROR("Error connecting to SAS - Resource Identifier is blank.");
-    return SAS_INIT_RC_ERR;
-  }
-
-  if (resource_identifier.length() > MAX_RESOURCE_ID_LEN)
-  {
-    SAS_LOG_ERROR("Error connecting to SAS - Resource Identifier is longer than %d characters.",
-                  MAX_RESOURCE_ID_LEN);
-    return SAS_INIT_RC_ERR;
-  }
-
   if (sas_address != "0.0.0.0")
   {
+    // Check the system and resource parameters are present and have the correct
+    // length.
+    if (system_name.length() <= 0)
+    {
+      SAS_LOG_ERROR("Error connecting to SAS - System name is blank.");
+      return SAS_INIT_RC_ERR;
+    }
+
+    if (system_name.length() > MAX_SYSTEM_LEN)
+    {
+      SAS_LOG_ERROR("Error connecting to SAS - System name is longer than %d characters.",
+                    MAX_SYSTEM_LEN);
+      return SAS_INIT_RC_ERR;
+    }
+
+    if (system_type.length() <= 0)
+    {
+      SAS_LOG_ERROR("Error connecting to SAS - System type is blank.");
+      return SAS_INIT_RC_ERR;
+    }
+
+    if (system_type.length() > MAX_SYSTEM_LEN)
+    {
+      SAS_LOG_ERROR("Error connecting to SAS - System type is longer than %d characters.",
+                    MAX_SYSTEM_LEN);
+      return SAS_INIT_RC_ERR;
+    }
+
+    if (resource_identifier.length() <= 0)
+    {
+      SAS_LOG_ERROR("Error connecting to SAS - Resource Identifier is blank.");
+      return SAS_INIT_RC_ERR;
+    }
+
+    if (resource_identifier.length() > MAX_RESOURCE_ID_LEN)
+    {
+      SAS_LOG_ERROR("Error connecting to SAS - Resource Identifier is longer than %d characters.",
+                    MAX_RESOURCE_ID_LEN);
+      return SAS_INIT_RC_ERR;
+    }
+
     _connection = new Connection(system_name,
                                  system_type,
                                  resource_identifier,
