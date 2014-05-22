@@ -139,7 +139,7 @@ public:
 
   protected:
     size_t params_buf_len() const;
-    void write_params(std::string& s) const;
+    void write_params(uint8_t*& write_ptr) const;
 
   private:
     TrailId _trail;
@@ -262,14 +262,14 @@ private:
     static const int MAX_MSG_QUEUE = 1000;
   };
 
-  static void write_hdr(std::string& s, uint16_t msg_length, uint8_t msg_type);
-  static void write_int8(std::string& s, uint8_t c);
-  static void write_int16(std::string& s, uint16_t v);
-  static void write_int32(std::string& s, uint32_t v);
-  static void write_int64(std::string& s, uint64_t v);
-  static void write_data(std::string& s, size_t length, const char* data);
-  static void write_timestamp(std::string& s);
-  static void write_trail(std::string& s, TrailId trail);
+  static void write_hdr(uint8_t*& write_ptr, uint16_t msg_length, uint8_t msg_type);
+  static void write_int8(uint8_t*& write_ptr, uint8_t c);
+  static void write_int16(uint8_t*& write_ptr, uint16_t v);
+  static void write_int32(uint8_t*& write_ptr, uint32_t v);
+  static void write_int64(uint8_t*& write_ptr, uint64_t v);
+  static void write_data(uint8_t*& write_ptr, size_t length, const char* data);
+  static void write_timestamp(uint8_t*& write_ptr);
+  static void write_trail(uint8_t*& write_ptr, TrailId trail);
 
   static std::atomic<TrailId> _next_trail_id;
   static Connection* _connection;
