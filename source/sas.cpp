@@ -92,6 +92,8 @@ const char* SAS_PORT = "6761";
 const unsigned int MAX_SYSTEM_LEN = 64;
 const unsigned int MAX_RESOURCE_ID_LEN = 255;
 
+const uint8_t ASSOC_OP_ASSOCIATE = 0x01;
+const uint8_t ASSOC_OP_NO_REACTIVATE = 0x02;
 
 std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
 SAS::Connection* SAS::_connection = NULL;
@@ -438,11 +440,11 @@ void SAS::report_event(const Event& event)
 }
 
 
-void SAS::report_marker(const Marker& marker, Marker::Scope scope)
+void SAS::report_marker(const Marker& marker, Marker::Scope scope, bool reactivate)
 {
   if (_connection)
   {
-    _connection->send_msg(marker.to_string(scope));
+    _connection->send_msg(marker.to_string(scope, reactivate));
   }
 }
 
@@ -566,7 +568,7 @@ std::string SAS::Event::to_string() const
 }
 
 
-std::string SAS::Marker::to_string(Marker::Scope scope) const
+std::string SAS::Marker::to_string(Marker::Scope scope, bool reactivate) const
 {
   size_t len = MARKER_HDR_SIZE + params_buf_len();
 
@@ -577,6 +579,20 @@ std::string SAS::Marker::to_string(Marker::Scope scope) const
   write_trail(s, _trail);
   write_int32(s, _id);
   write_int32(s, _instance);
+
+  // Work out how to fill in the association flags byte. 
+  uint8_t assoc_flags = 0;
+  if (scope != Scope::None)
+  {
+    assoc_flags = (assoc_flags | ASSOC_OP_ASSOCIATE);
+
+    if (!reactivate)
+    {
+      assoc_flags = (assoc_flags | ASSOC_OP_NO_REACTIVATE);
+    }
+  }
+
+  write_int8(s, assoc_flags);
   write_int8(s, (uint8_t)(scope != Scope::None));
   write_int8(s, (uint8_t)scope);
   write_params(s);

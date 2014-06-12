@@ -57,11 +57,15 @@
 
 
 // Marker IDs
+static const int MARKER_ID_PROTOCOL_ERROR = 0x01000001;
 static const int MARKER_ID_START = 0x01000003;
 static const int MARKER_ID_END = 0x01000004;
-static const int MARKER_ID_DAILED_DIGITS = 0x01000005;
+static const int MARKER_ID_DIALED_DIGITS = 0x01000005;
 static const int MARKER_ID_CALLING_DN = 0x01000006;
 static const int MARKER_ID_CALLED_DN = 0x01000007;
+static const int MARKED_ID_GENERIC_CORRELATOR = 0x01000016;
+static const int MARKED_ID_FLUSH = 0x01000017;
+
 static const int MARKER_ID_SIP_REGISTRATION = 0x010B0004;
 static const int MARKER_ID_SIP_ALL_REGISTER = 0x010B0005;
 static const int MARKER_ID_SIP_CALL_ID = 0x010C0001;
@@ -72,8 +76,6 @@ static const int MARKER_ID_OUTBOUND_CALLING_URI = 0x05000003;
 static const int MARKER_ID_INBOUND_CALLING_URI = 0x05000004;
 static const int MARKER_ID_OUTBOUND_CALLED_URI = 0x05000005;
 static const int MARKER_ID_INBOUND_CALLED_URI = 0x05000006;
-
-static const int MARKER_ID_PROTOCOL_ERROR = 0x01000001;
 
 // SAS::init return codes
 static const int SAS_INIT_RC_OK = 0;
@@ -183,7 +185,7 @@ public:
       Trace = 2
     };
 
-    std::string to_string(Scope scope) const;
+    std::string to_string(Scope scope, bool reactivate) const;
   };
 
   enum log_level_t {
@@ -223,7 +225,9 @@ public:
   static void term();
   static TrailId new_trail(uint32_t instance);
   static void report_event(const Event& event);
-  static void report_marker(const Marker& marker, Marker::Scope scope=Marker::Scope::None);
+  static void report_marker(const Marker& marker,
+                            Marker::Scope scope = Marker::Scope::None,
+                            bool reactivate = true);
 
 private:
   class Connection
