@@ -384,6 +384,17 @@ void test_no_reactivate_flag()
   ASSERT_PRINT_BYTES(expected.no_reactivate, bytes);
 }
 
+void test_no_reactivate_not_set_for_non_correlating_marker()
+{
+  SAS::Marker marker(111, 222, 333);
+  std::string bytes = marker.to_string(SAS::Marker::None, false);
+
+  SasTest::Marker expected;
+  expected.parse(bytes);
+
+  ASSERT_PRINT_BYTES(!expected.associate, bytes);
+  ASSERT_PRINT_BYTES(!expected.no_reactivate, bytes);
+}
 } // namespace MarkerTest
 
 int main(int argc, char *argv[])
@@ -406,6 +417,7 @@ int main(int argc, char *argv[])
   RUN_TEST(MarkerTest::test_var_then_static);
   RUN_TEST(MarkerTest::test_static_then_var);
   RUN_TEST(MarkerTest::test_no_reactivate_flag);
+  RUN_TEST(MarkerTest::test_no_reactivate_not_set_for_non_correlating_marker);
 
   if (failures == 0)
   {
