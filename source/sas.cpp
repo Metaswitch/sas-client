@@ -580,7 +580,7 @@ std::string SAS::Marker::to_string(Marker::Scope scope, bool reactivate) const
   write_int32(s, _id);
   write_int32(s, _instance);
 
-  // Work out how to fill in the association flags byte. 
+  // Work out how to fill in the association flags byte.
   uint8_t assoc_flags = 0;
   if (scope != Scope::None)
   {
@@ -593,7 +593,6 @@ std::string SAS::Marker::to_string(Marker::Scope scope, bool reactivate) const
   }
 
   write_int8(s, assoc_flags);
-  write_int8(s, (uint8_t)(scope != Scope::None));
   write_int8(s, (uint8_t)scope);
   write_params(s);
 
