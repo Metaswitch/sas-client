@@ -1,5 +1,5 @@
 /**
- * @file main.cpp SAS client library test script. 
+ * @file main.cpp SAS client library test script.
  *
  * Service Assurance Server client library
  * Copyright (C) 2013  Metaswitch Networks Ltd
@@ -37,13 +37,13 @@
 #include "sas.h"
 #include "sastestutil.h"
 
-// Exception class used to signal a test failure. 
+// Exception class used to signal a test failure.
 class TestError {};
 
-// The number of test failures we've hit. 
+// The number of test failures we've hit.
 static int failures = 0;
 
-// Fail a test if a condition is not true. 
+// Fail a test if a condition is not true.
 #define ASSERT(COND)                                                           \
   if (!(COND))                                                                 \
   {                                                                            \
@@ -53,7 +53,7 @@ static int failures = 0;
   }
 
 // Fail a test if a condition is not true, and dump out a string as hex.
-// This is useful when testing messages build by the client library. 
+// This is useful when testing messages build by the client library.
 #define ASSERT_PRINT_BYTES(COND, STR) \
   if (!(COND))                                                                 \
   {                                                                            \
@@ -63,7 +63,7 @@ static int failures = 0;
     TestError err; throw err;                                                  \
   }
 
-// Run a test, incremening the failures count if it does not succeed. 
+// Run a test, incremening the failures count if it does not succeed.
 #define RUN_TEST(NAME)                                                         \
 {                                                                              \
   try                                                                          \
@@ -83,7 +83,7 @@ static int failures = 0;
 //
 // Returns a string like this:
 //
-// Offset: |  0|  1|  2|  3|  4 
+// Offset: |  0|  1|  2|  3|  4
 //         --------------------
 // Data:   | ff| ee| aa| 06| 54
 std::string str_dump_hex(const std::string& s)
@@ -96,14 +96,14 @@ std::string str_dump_hex(const std::string& s)
   }
   oss << std::endl;
 
-  std::string divider; 
+  std::string divider;
   divider.assign(s.length()*4, '-');
   oss << "        " << divider << std::endl;
 
   oss << "Data:   ";
   for (size_t i = 0; i < s.length(); ++i)
   {
-    oss << "| " << std::hex << std::setw(2) << std::setfill('0') 
+    oss << "| " << std::hex << std::setw(2) << std::setfill('0')
         << (unsigned int)SasTest::to_byte(s[i]);
   }
 
@@ -111,7 +111,7 @@ std::string str_dump_hex(const std::string& s)
 }
 
 //
-// Event tests. 
+// Event tests.
 //
 namespace EventTest
 {
@@ -123,7 +123,7 @@ void test_empty()
 
   SasTest::Event expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.version == 3, bytes);
   ASSERT_PRINT_BYTES(expected.msg_type == 3, bytes); // 3 => Event
   ASSERT_PRINT_BYTES(expected.trail == 111, bytes);
@@ -142,7 +142,7 @@ void test_one_static_param()
 
   SasTest::Event expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.static_params.size() == 1, bytes);
   ASSERT_PRINT_BYTES(expected.static_params[0] == 1000, bytes);
   ASSERT_PRINT_BYTES(expected.var_params.size() == 0, bytes);
@@ -157,7 +157,7 @@ void test_two_static_params()
 
   SasTest::Event expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.static_params.size() == 2, bytes);
   ASSERT_PRINT_BYTES(expected.static_params[0] == 1000, bytes);
   ASSERT_PRINT_BYTES(expected.static_params[1] == 2000, bytes);
@@ -172,7 +172,7 @@ void test_one_var_param()
 
   SasTest::Event expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.static_params.size() == 0, bytes);
   ASSERT_PRINT_BYTES(expected.var_params.size() == 1, bytes);
   ASSERT_PRINT_BYTES(expected.var_params[0] == "hello", bytes);
@@ -187,7 +187,7 @@ void test_two_var_params()
 
   SasTest::Event expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.static_params.size() == 0, bytes);
   ASSERT_PRINT_BYTES(expected.var_params.size() == 2, bytes);
   ASSERT_PRINT_BYTES(expected.var_params[0] == "hello", bytes);
@@ -203,7 +203,7 @@ void test_static_then_var()
 
   SasTest::Event expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.static_params.size() == 1, bytes);
   ASSERT_PRINT_BYTES(expected.var_params.size() == 1, bytes);
   ASSERT_PRINT_BYTES(expected.static_params[0] == 1000, bytes);
@@ -219,7 +219,7 @@ void test_var_then_static()
 
   SasTest::Event expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.static_params.size() == 1, bytes);
   ASSERT_PRINT_BYTES(expected.var_params.size() == 1, bytes);
   ASSERT_PRINT_BYTES(expected.static_params[0] == 1000, bytes);
@@ -237,17 +237,17 @@ namespace MarkerTest
 void test_empty()
 {
   SAS::Marker marker(111, 222, 333);
-  std::string bytes = marker.to_string(SAS::Marker::None);
+  std::string bytes = marker.to_string(SAS::Marker::None, true);
 
   SasTest::Marker expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.version == 3, bytes);
   ASSERT_PRINT_BYTES(expected.msg_type == 4, bytes); // 4 => Marker
   ASSERT_PRINT_BYTES(expected.trail == 111, bytes);
   ASSERT_PRINT_BYTES(expected.marker_id == 222, bytes);
   ASSERT_PRINT_BYTES(expected.instance_id == 333, bytes);
-  ASSERT_PRINT_BYTES(expected.correlating == 0, bytes);
+  ASSERT_PRINT_BYTES(expected.association_flags == 0, bytes);
   ASSERT_PRINT_BYTES(expected.scope == 0, bytes);
   ASSERT_PRINT_BYTES(expected.static_params.empty(), bytes);
   ASSERT_PRINT_BYTES(expected.var_params.empty(), bytes);
@@ -256,24 +256,28 @@ void test_empty()
 void test_branch_scope_correlator()
 {
   SAS::Marker marker(111, 222, 333);
-  std::string bytes = marker.to_string(SAS::Marker::Branch);
+  std::string bytes = marker.to_string(SAS::Marker::Branch, true);
 
   SasTest::Marker expected;
   expected.parse(bytes);
-  
-  ASSERT_PRINT_BYTES(expected.correlating == 1, bytes);
+
+  ASSERT_PRINT_BYTES((expected.association_flags ==
+                      (SasTest::Marker::ASSOC_FLAG_ASSOCIATE)),
+                     bytes);
   ASSERT_PRINT_BYTES(expected.scope == 1, bytes);
 }
 
 void test_trace_scope_correlator()
 {
   SAS::Marker marker(111, 222, 333);
-  std::string bytes = marker.to_string(SAS::Marker::Trace);
+  std::string bytes = marker.to_string(SAS::Marker::Trace, true);
 
   SasTest::Marker expected;
   expected.parse(bytes);
-  
-  ASSERT_PRINT_BYTES(expected.correlating == 1, bytes);
+
+  ASSERT_PRINT_BYTES((expected.association_flags ==
+                      (SasTest::Marker::ASSOC_FLAG_ASSOCIATE)),
+                     bytes);
   ASSERT_PRINT_BYTES(expected.scope == 2, bytes);
 }
 
@@ -281,11 +285,11 @@ void test_one_static_param()
 {
   SAS::Marker marker(111, 222, 333);
   marker.add_static_param(1000);
-  std::string bytes = marker.to_string(SAS::Marker::None);
+  std::string bytes = marker.to_string(SAS::Marker::None, true);
 
   SasTest::Marker expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.static_params.size() == 1, bytes);
   ASSERT_PRINT_BYTES(expected.static_params[0] == 1000, bytes);
   ASSERT_PRINT_BYTES(expected.var_params.size() == 0, bytes);
@@ -296,11 +300,11 @@ void test_two_static_params()
   SAS::Marker marker(111, 222, 333);
   marker.add_static_param(1000);
   marker.add_static_param(2000);
-  std::string bytes = marker.to_string(SAS::Marker::None);
+  std::string bytes = marker.to_string(SAS::Marker::None, true);
 
   SasTest::Marker expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.static_params.size() == 2, bytes);
   ASSERT_PRINT_BYTES(expected.static_params[0] == 1000, bytes);
   ASSERT_PRINT_BYTES(expected.static_params[1] == 2000, bytes);
@@ -311,11 +315,11 @@ void test_one_var_param()
 {
   SAS::Marker marker(111, 222, 333);
   marker.add_var_param("hello");
-  std::string bytes = marker.to_string(SAS::Marker::None);
+  std::string bytes = marker.to_string(SAS::Marker::None, true);
 
   SasTest::Marker expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.static_params.size() == 0, bytes);
   ASSERT_PRINT_BYTES(expected.var_params.size() == 1, bytes);
   ASSERT_PRINT_BYTES(expected.var_params[0] == "hello", bytes);
@@ -326,11 +330,11 @@ void test_two_var_params()
   SAS::Marker marker(111, 222, 333);
   marker.add_var_param("hello");
   marker.add_var_param("world");
-  std::string bytes = marker.to_string(SAS::Marker::None);
+  std::string bytes = marker.to_string(SAS::Marker::None, true);
 
   SasTest::Marker expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.static_params.size() == 0, bytes);
   ASSERT_PRINT_BYTES(expected.var_params.size() == 2, bytes);
   ASSERT_PRINT_BYTES(expected.var_params[0] == "hello", bytes);
@@ -342,11 +346,11 @@ void test_static_then_var()
   SAS::Marker marker(111, 222, 333);
   marker.add_static_param(1000);
   marker.add_var_param("hello");
-  std::string bytes = marker.to_string(SAS::Marker::None);
+  std::string bytes = marker.to_string(SAS::Marker::None, true);
 
   SasTest::Marker expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.static_params.size() == 1, bytes);
   ASSERT_PRINT_BYTES(expected.var_params.size() == 1, bytes);
   ASSERT_PRINT_BYTES(expected.static_params[0] == 1000, bytes);
@@ -358,16 +362,31 @@ void test_var_then_static()
   SAS::Marker marker(111, 222, 333);
   marker.add_var_param("hello");
   marker.add_static_param(1000);
-  std::string bytes = marker.to_string(SAS::Marker::None);
+  std::string bytes = marker.to_string(SAS::Marker::None, true);
 
   SasTest::Marker expected;
   expected.parse(bytes);
-  
+
   ASSERT_PRINT_BYTES(expected.static_params.size() == 1, bytes);
   ASSERT_PRINT_BYTES(expected.var_params.size() == 1, bytes);
   ASSERT_PRINT_BYTES(expected.static_params[0] == 1000, bytes);
   ASSERT_PRINT_BYTES(expected.var_params[0] == "hello", bytes);
 }
+
+void test_no_reactivate_flag()
+{
+  SAS::Marker marker(111, 222, 333);
+  std::string bytes = marker.to_string(SAS::Marker::Trace, false);
+
+  SasTest::Marker expected;
+  expected.parse(bytes);
+
+  ASSERT_PRINT_BYTES((expected.association_flags ==
+                      (SasTest::Marker::ASSOC_FLAG_ASSOCIATE |
+                       SasTest::Marker::ASSOC_FLAG_NO_REACTIVATE)),
+                     bytes);
+}
+
 } // namespace MarkerTest
 
 int main(int argc, char *argv[])
@@ -389,6 +408,7 @@ int main(int argc, char *argv[])
   RUN_TEST(MarkerTest::test_two_var_params);
   RUN_TEST(MarkerTest::test_var_then_static);
   RUN_TEST(MarkerTest::test_static_then_var);
+  RUN_TEST(MarkerTest::test_no_reactivate_flag);
 
   if (failures == 0)
   {
