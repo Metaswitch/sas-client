@@ -319,6 +319,15 @@ namespace SasTest
         parse_int8(scope);
         parse_params();
         parse_complete(length);
+
+        // Parse the association flags, checking no unexpected flags are set. 
+        associate = ((association_flags & ASSOC_FLAG_ASSOCIATE) != 0);
+        no_reactivate = ((association_flags & ASSOC_FLAG_NO_REACTIVATE) != 0);
+        
+        if ((association_flags & (ASSOC_FLAG_ASSOCIATE | ASSOC_FLAG_NO_REACTIVATE)) != 0)
+        {
+          throw ParseError();
+        }
       }
       catch (ParseError)
       {
@@ -354,6 +363,10 @@ namespace SasTest
     uint32_t instance_id;
     uint8_t association_flags;
     uint8_t scope;
+
+    // Flags derived from the association_flags field. 
+    bool associate;
+    bool no_reactivate;
   };
 }
 

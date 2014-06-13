@@ -247,7 +247,8 @@ void test_empty()
   ASSERT_PRINT_BYTES(expected.trail == 111, bytes);
   ASSERT_PRINT_BYTES(expected.marker_id == 222, bytes);
   ASSERT_PRINT_BYTES(expected.instance_id == 333, bytes);
-  ASSERT_PRINT_BYTES(expected.association_flags == 0, bytes);
+  ASSERT_PRINT_BYTES(!expected.associate, bytes);
+  ASSERT_PRINT_BYTES(!expected.no_reactivate, bytes);
   ASSERT_PRINT_BYTES(expected.scope == 0, bytes);
   ASSERT_PRINT_BYTES(expected.static_params.empty(), bytes);
   ASSERT_PRINT_BYTES(expected.var_params.empty(), bytes);
@@ -261,9 +262,8 @@ void test_branch_scope_correlator()
   SasTest::Marker expected;
   expected.parse(bytes);
 
-  ASSERT_PRINT_BYTES((expected.association_flags ==
-                      (SasTest::Marker::ASSOC_FLAG_ASSOCIATE)),
-                     bytes);
+  ASSERT_PRINT_BYTES(expected.associate, bytes);
+  ASSERT_PRINT_BYTES(!expected.no_reactivate, bytes);
   ASSERT_PRINT_BYTES(expected.scope == 1, bytes);
 }
 
@@ -275,9 +275,8 @@ void test_trace_scope_correlator()
   SasTest::Marker expected;
   expected.parse(bytes);
 
-  ASSERT_PRINT_BYTES((expected.association_flags ==
-                      (SasTest::Marker::ASSOC_FLAG_ASSOCIATE)),
-                     bytes);
+  ASSERT_PRINT_BYTES(expected.associate, bytes);
+  ASSERT_PRINT_BYTES(!expected.no_reactivate, bytes);
   ASSERT_PRINT_BYTES(expected.scope == 2, bytes);
 }
 
@@ -381,10 +380,8 @@ void test_no_reactivate_flag()
   SasTest::Marker expected;
   expected.parse(bytes);
 
-  ASSERT_PRINT_BYTES((expected.association_flags ==
-                      (SasTest::Marker::ASSOC_FLAG_ASSOCIATE |
-                       SasTest::Marker::ASSOC_FLAG_NO_REACTIVATE)),
-                     bytes);
+  ASSERT_PRINT_BYTES(expected.associate, bytes);
+  ASSERT_PRINT_BYTES(expected.no_reactivate, bytes);
 }
 
 } // namespace MarkerTest
