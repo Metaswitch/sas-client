@@ -1,5 +1,5 @@
 /**
- * @file sastestutil.h Test utilities for the SAS client library. 
+ * @file sastestutil.h Test utilities for the SAS client library.
  *
  * Service Assurance Server client library
  * Copyright (C) 2013  Metaswitch Networks Ltd
@@ -45,10 +45,10 @@
 
 namespace SasTest
 {
-  // Utility function to turn a character into a byte. 
+  // Utility function to turn a character into a byte.
   //
   // This is useful when working with STL strings which represent a sequence of
-  // bytes. 
+  // bytes.
   inline uint8_t to_byte(char c)
   {
     if (c >= 0)
@@ -66,22 +66,22 @@ namespace SasTest
   public:
     Message() : _offset(0) {}
     ~Message() {}
-  
+
     // Parsed out static and variable parameters.
     std::vector<uint32_t> static_params;
     std::vector<std::string> var_params;
 
   protected:
-    // Parsing offset. 
+    // Parsing offset.
     size_t _offset;
 
-    // Buffer containing the message to parse. 
+    // Buffer containing the message to parse.
     std::string _buffer;
 
-    // Exception class used to signal a parsing error. 
+    // Exception class used to signal a parsing error.
     class ParseError {};
 
-    // Check there are at least n bytes left in the buffer. 
+    // Check there are at least n bytes left in the buffer.
     void check_remaining_bytes(int n)
     {
       if ((_offset + n) > _buffer.length())
@@ -91,7 +91,7 @@ namespace SasTest
     }
 
     //
-    // Parse various data types out of the buffer. 
+    // Parse various data types out of the buffer.
     //
 
     void parse_int8(uint8_t& value)
@@ -156,7 +156,7 @@ namespace SasTest
       _offset += len;
     }
 
-    // Parse the static and variable parameters out of the buffer. 
+    // Parse the static and variable parameters out of the buffer.
     void parse_params()
     {
       uint16_t static_len;
@@ -182,9 +182,9 @@ namespace SasTest
     }
 
     // Called when the prase is complete. Checks that;
-    // -  All butes have been consumed. 
+    // -  All butes have been consumed.
     // -  The buffer has the supplied length (which will usually have been
-    //    parsed out of the first two bytes of the buffer). 
+    //    parsed out of the first two bytes of the buffer).
     void parse_complete(size_t length)
     {
       if (_offset != _buffer.length())
@@ -198,7 +198,7 @@ namespace SasTest
       }
     }
 
-    // Utility method to print the static and variable parameters to a string. 
+    // Utility method to print the static and variable parameters to a string.
     std::string params_to_string()
     {
       std::ostringstream oss;
@@ -228,11 +228,11 @@ namespace SasTest
     {}
 
     ~Event() {};
-  
-    // Parse a supplied buffer as an Event. 
-    // 
-    // @param buf the buffer to parse. 
-    // @return whether the message parsed successfully. 
+
+    // Parse a supplied buffer as an Event.
+    //
+    // @param buf the buffer to parse.
+    // @return whether the message parsed successfully.
     bool parse(std::string buf)
     {
       _buffer = buf;
@@ -259,7 +259,7 @@ namespace SasTest
       return success;
     }
 
-    // Return a string representation of the Event. 
+    // Return a string representation of the Event.
     std::string to_string()
     {
       std::ostringstream oss;
@@ -278,25 +278,28 @@ namespace SasTest
     uint8_t version;
     uint8_t msg_type;
     uint64_t timestamp;
-    SAS::TrailId trail; 
-    uint32_t event_id; 
+    SAS::TrailId trail;
+    uint32_t event_id;
     uint32_t instance_id;
   };
 
   class Marker : public Message
   {
   public:
+    static const uint8_t ASSOC_FLAG_ASSOCIATE = 0x01;
+    static const uint8_t ASSOC_FLAG_NO_REACTIVATE = 0x02;
+
     Marker() :
       length(0), version(0), msg_type(0), trail(0), marker_id(0), instance_id(0),
-      correlating(0), scope(0)
+      association_flags(0), scope(0)
     {}
 
     ~Marker() {};
-  
-    // Parse a supplied buffer as a Marker. 
-    // 
-    // @param buf the buffer to parse. 
-    // @return whether the message parsed successfully. 
+
+    // Parse a supplied buffer as a Marker.
+    //
+    // @param buf the buffer to parse.
+    // @return whether the message parsed successfully.
     bool parse(std::string buf)
     {
       _buffer = buf;
@@ -312,10 +315,19 @@ namespace SasTest
         parse_network_int64(trail);
         parse_network_int32(marker_id);
         parse_network_int32(instance_id);
-        parse_int8(correlating);
+        parse_int8(association_flags);
         parse_int8(scope);
         parse_params();
         parse_complete(length);
+
+        // Parse the association flags, checking no unexpected flags are set. 
+        associate = ((association_flags & ASSOC_FLAG_ASSOCIATE) != 0);
+        no_reactivate = ((association_flags & ASSOC_FLAG_NO_REACTIVATE) != 0);
+        
+        if ((association_flags & (ASSOC_FLAG_ASSOCIATE | ASSOC_FLAG_NO_REACTIVATE)) != 0)
+        {
+          throw ParseError();
+        }
       }
       catch (ParseError)
       {
@@ -325,7 +337,7 @@ namespace SasTest
       return success;
     }
 
-    // Return a string representation of the Marker. 
+    // Return a string representation of the Marker.
     std::string to_string()
     {
       std::ostringstream oss;
@@ -335,7 +347,7 @@ namespace SasTest
       oss << "Trail ID:          " << trail << std::endl;
       oss << "Marker ID:         " << marker_id << std::endl;
       oss << "Instance ID:       " << instance_id << std::endl;
-      oss << "Correlating:       " << (int)correlating << std::endl;
+      oss << "Assoc flags:       " << (int)association_flags << std::endl;
       oss << "Scope:             " << (int)scope << std::endl;
       oss << params_to_string();
 
@@ -345,12 +357,16 @@ namespace SasTest
     uint16_t length;
     uint8_t version;
     uint8_t msg_type;
-    SAS::TrailId trail; 
+    SAS::TrailId trail;
     uint64_t timestamp;
-    uint32_t marker_id; 
+    uint32_t marker_id;
     uint32_t instance_id;
-    uint8_t correlating;
+    uint8_t association_flags;
     uint8_t scope;
+
+    // Flags derived from the association_flags field. 
+    bool associate;
+    bool no_reactivate;
   };
 }
 
