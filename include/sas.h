@@ -55,6 +55,16 @@
 
 #include "eventq.h"
 
+// SAS Client library Version number
+// format x.y.z
+// The SAS Client library uses semantic versioning. This means:
+// We use a three-part version number: <major version>.<minor version>.<patch>
+// * The Patch number is incremented for bug fix releases.  
+// * The Minor version number is incremented for releases that add new API 
+//   features, but are fully backwards compatible.  
+// * The Major version number must be incremented for releases that break 
+//   backwards compatibility in any way.  
+#define SAS_CLIENT_VERSION = "1.0.0"
 
 // Marker IDs
 static const int MARKER_ID_PROTOCOL_ERROR = 0x01000001;
