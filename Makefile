@@ -7,7 +7,7 @@ build: libsas.a
 libsas.a: sas.o
 	ar cr libsas.a sas.o
 
-sas.o: source/sas.cpp include/sas.h include/eventq.h include/config.h
+sas.o: source/sas.cpp source/sas_eventq.h include/sas.h include/config.h
 	g++ -Iinclude -std=c++0x -c source/sas.cpp -Wall -Werror -ggdb3
 
 include/config.h: configure

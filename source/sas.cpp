@@ -43,6 +43,7 @@
 #include <sys/socket.h>
 
 #include "sas.h"
+#include "sas_eventq.h"
 
 
 #define SAS_LOG_ERROR(...) SAS_LOG(SAS::LOG_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
@@ -99,6 +100,41 @@ std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
 SAS::Connection* SAS::_connection = NULL;
 SAS::sas_log_callback_t* SAS::_log_callback = NULL;
 
+class SAS::Connection
+{
+public:
+  Connection(const std::string& system_name,
+             const std::string& system_type,
+             const std::string& resource_identifier,
+             const std::string& sas_address);
+  ~Connection();
+
+  void send_msg(std::string msg);
+
+  static void* writer_thread(void* p);
+
+private:
+  bool connect_init();
+  void writer();
+
+  std::string _system_name;
+  std::string _system_type;
+  std::string _resource_identifier;
+  std::string _sas_address;
+
+  SASeventq<std::string> _msg_q;
+
+  pthread_t _writer;
+
+  // Socket for the connection.
+  int _sock;
+
+  /// Send timeout for the socket in seconds.
+  static const int SEND_TIMEOUT = 30;
+
+  /// Maximum depth of SAS message queue.
+  static const int MAX_MSG_QUEUE = 1000;
+};
 
 int SAS::init(const std::string& system_name,
                const std::string& system_type,
