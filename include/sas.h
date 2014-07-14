@@ -44,6 +44,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <string>
+#include <vector>
 
 #if HAVE_ATOMIC
   #include <atomic>
@@ -52,8 +53,6 @@
 #else
   #error "Atomic types not supported"
 #endif
-
-#include "eventq.h"
 
 // SAS Client library Version number
 // format x.y.z
@@ -240,41 +239,6 @@ public:
                             bool reactivate = true);
 
 private:
-  class Connection
-  {
-  public:
-    Connection(const std::string& system_name,
-               const std::string& system_type,
-               const std::string& resource_identifier,
-               const std::string& sas_address);
-    ~Connection();
-
-    void send_msg(std::string msg);
-
-    static void* writer_thread(void* p);
-
-  private:
-    bool connect_init();
-    void writer();
-
-    std::string _system_name;
-    std::string _system_type;
-    std::string _resource_identifier;
-    std::string _sas_address;
-
-    eventq<std::string> _msg_q;
-
-    pthread_t _writer;
-
-    // Socket for the connection.
-    int _sock;
-
-    /// Send timeout for the socket in seconds.
-    static const int SEND_TIMEOUT = 30;
-
-    /// Maximum depth of SAS message queue.
-    static const int MAX_MSG_QUEUE = 1000;
-  };
 
   static void write_hdr(std::string& s, uint16_t msg_length, uint8_t msg_type);
   static void write_int8(std::string& s, uint8_t c);
@@ -286,6 +250,7 @@ private:
   static void write_trail(std::string& s, TrailId trail);
 
   static std::atomic<TrailId> _next_trail_id;
+  class Connection;
   static Connection* _connection;
   static sas_log_callback_t* _log_callback;
 };

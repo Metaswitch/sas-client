@@ -43,13 +43,13 @@
 #include <queue>
 
 template<class T>
-class eventq
+class SASeventq
 {
 public:
   /// Create an event queue.
   ///
   /// @param max_queue maximum size of event queue, zero is unlimited.
-  eventq(unsigned int max_queue=0, bool open=true) :
+  SASeventq(unsigned int max_queue=0, bool open=true) :
     _open(open),
     _max_queue(max_queue),
     _q(),
@@ -66,7 +66,7 @@ public:
     pthread_condattr_destroy(&cond_attr);
   };
 
-  ~eventq()
+  ~SASeventq()
   {
   };
 
