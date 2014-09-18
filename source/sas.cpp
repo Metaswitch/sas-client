@@ -41,6 +41,7 @@
 #include <netdb.h>
 #include <stdarg.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 #include "sas.h"
 #include "sas_eventq.h"
