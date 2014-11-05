@@ -49,16 +49,17 @@
 pthread_once_t SAS::Compressor::_once = PTHREAD_ONCE_INIT;
 pthread_key_t SAS::Compressor::_key = {0};
 
+/// Statically initialize the Compressor class by creating the thread-local key.
 void SAS::Compressor::init()
 {
   int rc = pthread_key_create(&_key, destroy);
   if (rc != 0)
   {
-// TODO!
-    SAS_LOG_WARNING("Failed to create Compressor key");
+    SAS_LOG_WARNING("Failed to create key for SAS parameter compressor");
   }
 }
 
+/// Get a thread-scope Compressor, or create one if it doesn't exist already.
 SAS::Compressor* SAS::Compressor::get()
 {
   (void)pthread_once(&_once, init);
@@ -71,12 +72,14 @@ SAS::Compressor* SAS::Compressor::get()
   return compressor;
 }
 
+/// Destroy a Compressor.  (Called by pthread when a thread terminates.)
 void SAS::Compressor::destroy(void* compressor_ptr)
 {
   Compressor* compressor = (Compressor*)compressor_ptr;
   delete compressor;
 }
 
+/// Compressor constructor.  Initializes the zlib compressor.
 SAS::Compressor::Compressor()
 {
   int rc = deflateInit2(&_stream,
@@ -87,24 +90,33 @@ SAS::Compressor::Compressor()
                         Z_DEFAULT_STRATEGY);
   if (rc != Z_OK)
   {
-// TODO!
+    SAS_LOG_WARNING("Failed to initialize SAS parameter compressor (rc=%d)", rc);
   }
 }
 
+/// Compressor destructor.  Terminates the zlib compressor.
 SAS::Compressor::~Compressor()
 {
   deflateEnd(&_stream);
 }
 
+/// Compresses the specified string using the optional profile.
 std::string SAS::Compressor::compress(const std::string& s, const Profile* profile)
 {
+  // If we have a profile, set its dictionary into the zlib compressor.
   if (profile != NULL)
   {
     std::string dictionary = profile->get_dictionary();
     deflateSetDictionary(&_stream, (const unsigned char*)dictionary.c_str(), dictionary.length());
   }
+
+  // Initialize the zlib compressor with the input.
   _stream.next_in = (unsigned char*)s.c_str();
   _stream.avail_in = s.length();
+
+  // Spin round, compressing up to a buffer's worth of input and appending it to the string.  Z_OK
+  // indicates that we compressed data but still have work to do.  Z_STREAM_END means we've
+  // finished.
   std::string compressed;
   int rc = Z_OK;
   do
@@ -115,11 +127,16 @@ std::string SAS::Compressor::compress(const std::string& s, const Profile* profi
     compressed += std::string(_buffer, sizeof(_buffer) - _stream.avail_out);
   }
   while (rc == Z_OK);
+
+  // Check we succeeded.
   if (rc != Z_STREAM_END)
   {
-// TODO!
+    SAS_LOG_WARNING("Failed to compress SAS parameter (rc=%d)", rc);
   }
+
+  // Reset the compressor before we return.
   deflateReset(&_stream);
+
   return compressed;
 }
 #endif
