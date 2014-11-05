@@ -43,7 +43,7 @@
 # autoconf.
 
 CONFIG_FILE=include/config.h
-HEADERS="atomic cstdatomic"
+HEADERS="atomic cstdatomic zlib.h"
 
 # Check whether a header file is present on the system by compiling a test
 # program that includes it.
@@ -78,7 +78,7 @@ check_header_file()
 #   $2 - Whether the resource is present (0 or 1)
 write_hash_define()
 {
-  name=$(echo $1 | tr [a-z] [A-Z])
+  name=$(echo $1 | tr [a-z.] [A-Z_])
   flag=$2
 
   echo "#define HAVE_$name $flag" >> $CONFIG_FILE

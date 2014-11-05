@@ -54,6 +54,10 @@
   #error "Atomic types not supported"
 #endif
 
+#if HAVE_ZLIB_H
+  #include <zlib.h>
+#endif
+
 // SAS Client library Version number
 // format x.y.z
 // The SAS Client library uses semantic versioning. This means:
@@ -95,6 +99,43 @@ class SAS
 {
 public:
   typedef uint64_t TrailId;
+
+#if HAVE_ZLIB_H
+  // Compression-related classes are only available if zlib is
+  class Profile
+  {
+  public:
+    inline Profile(std::string dictionary) : _dictionary(dictionary) {}
+    inline const std::string& get_dictionary() const {return _dictionary;}
+
+  private:
+    const std::string _dictionary;
+  };
+
+  class Compressor
+  {
+  public:
+    static Compressor* get();
+
+    std::string compress(const std::string& s, const Profile* profile = NULL);
+
+  private:
+    static void init();
+    static void destroy(void* compressor_ptr);
+
+    Compressor();
+    ~Compressor();
+
+    static const int WINDOW_BITS = 9;
+    static const int MEM_LEVEL = 2; 
+    // Variables with which to store a compressor on a per-thread basis.
+    static pthread_once_t _once;
+    static pthread_key_t _key;
+
+    z_stream _stream;
+    char _buffer[4096];
+  };
+#endif
 
   class Message
   {
@@ -146,6 +187,33 @@ public:
       std::string local_str(s);
       return add_var_param(local_str);
     }
+
+#if HAVE_ZLIB_H
+    // Compression-related methods are only available if zlib is
+    inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
+    {
+      Compressor* compressor = Compressor::get();
+      return add_var_param(compressor->compress(s, profile));
+    }
+
+    inline Message& add_compressed_param(size_t len, char* s, const Profile* profile = NULL)
+    {
+      std::string local_str(s, len);
+      return add_compressed_param(local_str, profile);
+    }
+
+    inline Message& add_compressed_param(size_t len, uint8_t* s, const Profile* profile = NULL)
+    {
+      std::string local_str((char *)s, len);
+      return add_compressed_param(local_str, profile);
+    }
+
+    inline Message& add_compressed_param(const char* s, const Profile* profile = NULL)
+    {
+      std::string local_str(s);
+      return add_compressed_param(local_str, profile);
+    }
+#endif
 
     friend class SAS;
 
