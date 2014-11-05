@@ -1,6 +1,5 @@
 /**
- * @file sas.cpp Implementation of SAS class used for reporting events
- * and markers to Service Assurance Server.
+ * @file sas_compress.cpp Implementation of SAS parameter compression.
  *
  * Service Assurance Server client library
  * Copyright (C) 2014  Metaswitch Networks Ltd
