@@ -35,6 +35,8 @@
  */
 
 #if HAVE_ZLIB_H
+// Compression-related function is only available if zlib is.
+
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
@@ -45,7 +47,6 @@
 #include "sas.h"
 #include "sas_compress.h"
 
-// Compression-related function is only available for zlib is
 pthread_once_t SAS::Compressor::_once = PTHREAD_ONCE_INIT;
 pthread_key_t SAS::Compressor::_key = {0};
 
