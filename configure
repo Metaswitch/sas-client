@@ -43,7 +43,7 @@
 # autoconf.
 
 CONFIG_FILE=include/config.h
-HEADERS="atomic cstdatomic zlib.h"
+HEADERS="atomic cstdatomic"
 
 # Check whether a header file is present on the system by compiling a test
 # program that includes it.
@@ -97,3 +97,12 @@ do
     write_hash_define $header 0
   fi
 done
+
+# Check zlib and write a suitable warning if not found
+if check_header_file zlib.h
+then
+  write_hash_define zlib.h 1
+else
+  write_hash_define zlib.h 0
+  echo "*** SAS COMPRESSION DISABLED! ***"
+fi

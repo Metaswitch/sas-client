@@ -17,12 +17,16 @@ include/config.h: configure
 
 .PHONY: clean
 clean:
-	rm -rf *.o *.a include/config.h sas_test
+	rm -rf *.o *.a include/config.h sas_test sas_compress_test
 
-.PHONY: test
+.PHONY: test test_compress
 test: sas_test
 	./sas_test
+test_compress: sas_compress_test
+	./sas_compress_test
 
 sas_test: libsas.a source/ut/sastestutil.h source/ut/main.cpp
 	g++ source/ut/main.cpp -o sas_test -I include -std=c++0x -L. -lsas -lrt -Wall -Werror -ggdb3
+sas_compress_test: libsas.a source/ut/sastestutil.h source/ut/main_compress.cpp
+	g++ source/ut/main_compress.cpp -o sas_compress_test -I include -std=c++0x -L. -lsas -lrt -lz -Wall -Werror -ggdb3
 

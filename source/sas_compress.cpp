@@ -34,9 +34,6 @@
  * as those licenses appear in the file LICENSE-OPENSSL.
  */
 
-#if HAVE_ZLIB_H
-// Compression-related function is only available if zlib is.
-
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
@@ -45,7 +42,10 @@
 #include <sys/socket.h>
 
 #include "sas.h"
-#include "sas_compress.h"
+#include "sas_internal.h"
+
+#if HAVE_ZLIB_H
+// Compression-related function is only available if zlib is.
 
 pthread_once_t SAS::Compressor::_once = PTHREAD_ONCE_INIT;
 pthread_key_t SAS::Compressor::_key = {0};
@@ -124,7 +124,7 @@ std::string SAS::Compressor::compress(const std::string& s, const Profile* profi
   {
     _stream.next_out = (unsigned char*)_buffer;
     _stream.avail_out = sizeof(_buffer);
-    deflate(&_stream, Z_FINISH);
+    rc = deflate(&_stream, Z_FINISH);
     compressed += std::string(_buffer, sizeof(_buffer) - _stream.avail_out);
   }
   while (rc == Z_OK);

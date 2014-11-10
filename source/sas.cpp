@@ -46,6 +46,15 @@
 #include "sas_eventq.h"
 #include "sas_internal.h"
 
+const char* SAS_PORT = "6761";
+
+// MIN/MAX string lengths for init parameters.
+const unsigned int MAX_SYSTEM_LEN = 64;
+const unsigned int MAX_RESOURCE_ID_LEN = 255;
+
+const uint8_t ASSOC_OP_ASSOCIATE = 0x01;
+const uint8_t ASSOC_OP_NO_REACTIVATE = 0x02;
+
 std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
 SAS::Connection* SAS::_connection = NULL;
 SAS::sas_log_callback_t* SAS::_log_callback = NULL;
