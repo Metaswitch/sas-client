@@ -83,6 +83,11 @@ void SAS::Compressor::destroy(void* compressor_ptr)
 /// Compressor constructor.  Initializes the zlib compressor.
 SAS::Compressor::Compressor()
 {
+  _stream.next_in = Z_NULL;
+  _stream.avail_in = 0;
+  _stream.zalloc = Z_NULL;
+  _stream.zfree = Z_NULL;
+  _stream.opaque = Z_NULL;
   int rc = deflateInit2(&_stream,
                         Z_DEFAULT_COMPRESSION,
                         Z_DEFLATED,
