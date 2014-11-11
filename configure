@@ -78,7 +78,7 @@ check_header_file()
 #   $2 - Whether the resource is present (0 or 1)
 write_hash_define()
 {
-  name=$(echo $1 | tr [a-z] [A-Z])
+  name=$(echo $1 | tr [a-z.] [A-Z_])
   flag=$2
 
   echo "#define HAVE_$name $flag" >> $CONFIG_FILE
@@ -97,3 +97,12 @@ do
     write_hash_define $header 0
   fi
 done
+
+# Check zlib and write a suitable warning if not found
+if check_header_file zlib.h
+then
+  write_hash_define zlib.h 1
+else
+  write_hash_define zlib.h 0
+  echo "*** SAS COMPRESSION DISABLED! ***"
+fi
