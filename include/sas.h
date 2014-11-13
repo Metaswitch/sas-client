@@ -192,8 +192,10 @@ public:
     // Compression-related methods are only available if zlib is
     inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
     {
-      Compressor* compressor = Compressor::get();
-      return add_var_param(compressor->compress(s, profile));
+      // Disable compression until this function is generally available on the server side.
+      // Compressor* compressor = Compressor::get();
+      // return add_var_param(compressor->compress(s, profile));
+      return add_var_param(s);
     }
 
     inline Message& add_compressed_param(size_t len, char* s, const Profile* profile = NULL)
