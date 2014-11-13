@@ -45,48 +45,7 @@
 
 #include "sas.h"
 #include "sas_eventq.h"
-
-
-#define SAS_LOG_ERROR(...) SAS_LOG(SAS::LOG_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_WARNING(...) SAS_LOG(SAS::LOG_LEVEL_WARNING, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_STATUS(...) SAS_LOG(SAS::LOG_LEVEL_STATUS, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_INFO(...) SAS_LOG(SAS::LOG_LEVEL_INFO, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_VERBOSE(...) SAS_LOG(SAS::LOG_LEVEL_VERBOSE, __FILE__, __LINE__, __VA_ARGS__)
-#define SAS_LOG_DEBUG(...) SAS_LOG(SAS::LOG_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
-
-#define SAS_LOG(...) _log_callback(__VA_ARGS__)
-
-
-// SAS message types.
-const int SAS_MSG_INIT   = 1;
-const int SAS_MSG_EVENT  = 3;
-const int SAS_MSG_MARKER = 4;
-
-// SAS message header sizes
-
-// SAS message header consists of 12 bytes in total:
-// - [ 2 bytes ] Message length.
-// - [ 1 bytes ] Interface version.
-// - [ 1 bytes ] Message type.
-// - [ 8 bytes ] Timestamp.
-const int COMMON_HDR_SIZE = sizeof(uint16_t) + sizeof(uint8_t) + sizeof(uint8_t) + sizeof(uint64_t);
-
-// Init headers are just the base header.
-const int INIT_HDR_SIZE   = COMMON_HDR_SIZE;
-
-// Event headers consist of the standard SAS header, plus 16 bytes:
-// - [ 8 bytes ] Trail ID.
-// - [ 4 bytes ] Event ID.
-// - [ 4 bytes ] Instance ID.
-const int EVENT_HDR_SIZE  = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint32_t);
-
-// Marker headers consist of the standard SAS header, plus 16 bytes:
-// - [ 8 bytes ] Trail ID.
-// - [ 4 bytes ] Marker ID.
-// - [ 4 bytes ] Instance ID.
-// - [ 1 byte  ] Is correlating?
-// - [ 1 bytes ] Correlation scope.
-const int MARKER_HDR_SIZE = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint8_t);
+#include "sas_internal.h"
 
 const char* SAS_PORT = "6761";
 
@@ -586,7 +545,6 @@ void SAS::Message::write_params(std::string& s) const
     write_data(s, vp->length(), vp->data());
   }
 }
-
 
 std::string SAS::Event::to_string() const
 {

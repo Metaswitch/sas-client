@@ -43,6 +43,48 @@
 #include <utility>
 #include <sstream>
 
+// Exception class used to signal a test failure.
+class TestError {};
+
+// The number of test failures we've hit.
+static int failures = 0;
+
+// Fail a test if a condition is not true.
+#define ASSERT(COND)                                                           \
+  if (!(COND))                                                                 \
+  {                                                                            \
+    std::cout << "ASSERT failed: '" << #COND << "' at "                        \
+              << __FILE__ << ":" << __LINE__ << std::endl;                     \
+    TestError err; throw err;                                                  \
+  }
+
+// Fail a test if a condition is not true, and dump out a string as hex.
+// This is useful when testing messages build by the client library.
+#define ASSERT_PRINT_BYTES(COND, STR) \
+  if (!(COND))                                                                 \
+  {                                                                            \
+    std::cout << "ASSERT failed: '" << #COND << "' at "                        \
+              << __FILE__ << ":" << __LINE__ << std::endl;                     \
+    std::cout << str_dump_hex(STR) << std::endl;                               \
+    TestError err; throw err;                                                  \
+  }
+
+// Run a test, incremening the failures count if it does not succeed.
+#define RUN_TEST(NAME)                                                         \
+{                                                                              \
+  try                                                                          \
+  {                                                                            \
+    std::cout << "Running " #NAME << "..." << std::endl;                       \
+    NAME();                                                                    \
+    std::cout << #NAME " PASSED" << std::endl;                                 \
+  }                                                                            \
+  catch (TestError)                                                            \
+  {                                                                            \
+    std::cout << #NAME " FAILED" << std::endl;                                 \
+    failures++;                                                                \
+  }                                                                            \
+}
+
 namespace SasTest
 {
   // Utility function to turn a character into a byte.
@@ -368,6 +410,37 @@ namespace SasTest
     bool associate;
     bool no_reactivate;
   };
+}
+
+// Utility method to format a string as a hex dump.
+//
+// Returns a string like this:
+//
+// Offset: |  0|  1|  2|  3|  4
+//         --------------------
+// Data:   | ff| ee| aa| 06| 54
+std::string str_dump_hex(const std::string& s)
+{
+  std::ostringstream oss;
+  oss << "Offset: ";
+  for (size_t i = 0; i < s.length(); ++i)
+  {
+    oss << "|" << std::setw(3) << i;
+  }
+  oss << std::endl;
+
+  std::string divider;
+  divider.assign(s.length()*4, '-');
+  oss << "        " << divider << std::endl;
+
+  oss << "Data:   ";
+  for (size_t i = 0; i < s.length(); ++i)
+  {
+    oss << "| " << std::hex << std::setw(2) << std::setfill('0')
+        << (unsigned int)SasTest::to_byte(s[i]);
+  }
+
+  return oss.str();
 }
 
 #endif

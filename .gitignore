@@ -2,3 +2,4 @@
 libsas.a
 include/config.h
 sas_test
+sas_compress_test
