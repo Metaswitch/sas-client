@@ -126,8 +126,8 @@ public:
     Compressor();
     ~Compressor();
 
-    static const int WINDOW_BITS = 9;
-    static const int MEM_LEVEL = 2; 
+    static const int WINDOW_BITS = 15;
+    static const int MEM_LEVEL = 9;
     // Variables with which to store a compressor on a per-thread basis.
     static pthread_once_t _once;
     static pthread_key_t _key;
