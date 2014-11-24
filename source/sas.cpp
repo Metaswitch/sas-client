@@ -383,7 +383,7 @@ bool SAS::Connection::connect_init()
                  sizeof(uint8_t) + _resource_identifier.length() +
                  sizeof(uint8_t) + resource_version.length();
   init.reserve(init_len);
-  write_hdr(init, init_len, SAS_MSG_INIT);
+  write_hdr(init, init_len, SAS_MSG_INIT, get_current_timestamp());
   write_int8(init, (uint8_t)_system_name.length());
   write_data(init, _system_name.length(), _system_name.data());
   int endianness = 1;
@@ -445,12 +445,26 @@ void SAS::report_marker(const Marker& marker, Marker::Scope scope, bool reactiva
 }
 
 
-void SAS::write_hdr(std::string& s, uint16_t msg_length, uint8_t msg_type)
+SAS::Timestamp SAS::get_current_timestamp()
+{
+  Timestamp timestamp;
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+  timestamp = ts.tv_sec;
+  timestamp = timestamp * 1000 + (ts.tv_nsec / 1000000);
+  return timestamp;
+}
+
+
+void SAS::write_hdr(std::string& s,
+                    uint16_t msg_length,
+                    uint8_t msg_type,
+                    Timestamp timestamp)
 {
   SAS::write_int16(s, msg_length);
   SAS::write_int8(s, 3);             // Version = 3
   SAS::write_int8(s, msg_type);
-  SAS::write_timestamp(s);
+  SAS::write_int64(s, timestamp);
 }
 
 
@@ -486,17 +500,6 @@ void SAS::write_int64(std::string& s, uint64_t v)
 void SAS::write_data(std::string& s, size_t len, const char* data)
 {
   s.append(data, len);
-}
-
-
-void SAS::write_timestamp(std::string& s)
-{
-  unsigned long long timestamp;
-  struct timespec ts;
-  clock_gettime(CLOCK_REALTIME, &ts);
-  timestamp = ts.tv_sec;
-  timestamp = timestamp * 1000 + (ts.tv_nsec / 1000000);
-  write_int64(s, timestamp);
 }
 
 
@@ -546,6 +549,23 @@ void SAS::Message::write_params(std::string& s) const
   }
 }
 
+
+// Get the timestamp to be used on the message.
+SAS::Timestamp SAS::Message::get_timestamp() const
+{
+  if (!_timestamp_set)
+  {
+    // Timestamp not already specified - use the current time.
+    return SAS::get_current_timestamp();
+  }
+  else
+  {
+    // timestamp has already been specified - use that.
+    return _timestamp;
+  }
+}
+
+
 std::string SAS::Event::to_string() const
 {
   size_t len = EVENT_HDR_SIZE + params_buf_len();
@@ -553,7 +573,7 @@ std::string SAS::Event::to_string() const
   std::string s;
   s.reserve(len);
 
-  write_hdr(s, len, SAS_MSG_EVENT);
+  write_hdr(s, len, SAS_MSG_EVENT, get_timestamp());
   write_trail(s, _trail);
   write_int32(s, _id);
   write_int32(s, _instance);
@@ -570,7 +590,7 @@ std::string SAS::Marker::to_string(Marker::Scope scope, bool reactivate) const
   std::string s;
   s.reserve(len);
 
-  write_hdr(s, len, SAS_MSG_MARKER);
+  write_hdr(s, len, SAS_MSG_MARKER, get_timestamp());
   write_trail(s, _trail);
   write_int32(s, _id);
   write_int32(s, _instance);
