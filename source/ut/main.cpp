@@ -153,7 +153,7 @@ void test_var_then_static()
   ASSERT_PRINT_BYTES(expected.var_params[0] == "hello", bytes);
 }
 
-void timestamps_default_to_current_time()
+void test_timestamps_default_to_current_time()
 {
   SAS::Event event(111, 222, 333);
   std::string bytes = event.to_string();
@@ -360,8 +360,8 @@ int main(int argc, char *argv[])
   RUN_TEST(EventTest::test_two_var_params);
   RUN_TEST(EventTest::test_var_then_static);
   RUN_TEST(EventTest::test_static_then_var);
+  RUN_TEST(EventTest::test_timestamps_default_to_current_time);
   RUN_TEST(EventTest::test_timestamps_can_be_overriden);
-  RUN_TEST(EventTest::timestamps_default_to_current_time);
 
   RUN_TEST(MarkerTest::test_empty);
   RUN_TEST(MarkerTest::test_branch_scope_correlator);
