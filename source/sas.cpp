@@ -553,16 +553,7 @@ void SAS::Message::write_params(std::string& s) const
 // Get the timestamp to be used on the message.
 SAS::Timestamp SAS::Message::get_timestamp() const
 {
-  if (!_timestamp_set)
-  {
-    // Timestamp not already specified - use the current time.
-    return SAS::get_current_timestamp();
-  }
-  else
-  {
-    // timestamp has already been specified - use that.
-    return _timestamp;
-  }
+  return SAS::get_current_timestamp();
 }
 
 
@@ -580,6 +571,22 @@ std::string SAS::Event::to_string() const
   write_params(s);
 
   return std::move(s);
+}
+
+
+// Get the timestamp to be used on the message.
+SAS::Timestamp SAS::Event::get_timestamp() const
+{
+  if (!_timestamp_set)
+  {
+    // Timestamp not already specified - use the current time.
+    return SAS::get_current_timestamp();
+  }
+  else
+  {
+    // Timestamp has already been specified - use that.
+    return _timestamp;
+  }
 }
 
 

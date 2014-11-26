@@ -349,6 +349,21 @@ void test_no_reactivate_not_set_for_non_correlating_marker()
   ASSERT_PRINT_BYTES(!expected.associate, bytes);
   ASSERT_PRINT_BYTES(!expected.no_reactivate, bytes);
 }
+
+void test_timestamps_use_current_time()
+{
+  SAS::Marker marker(111, 222, 333);
+  std::string bytes = marker.to_string(SAS::Marker::None, false);
+
+  SasTest::Marker expected;
+  expected.parse(bytes);
+
+  // Check the timestamp is approximately equal to the current time. Allow 5s
+  // either way in case we are running slowly (under Valgrind for example).
+  SAS::Timestamp ts = (time(NULL) * 1000);
+  ASSERT_PRINT_BYTES(expected.timestamp > (ts - 5000), bytes);
+  ASSERT_PRINT_BYTES(expected.timestamp < (ts + 5000), bytes);
+}
 } // namespace MarkerTest
 
 int main(int argc, char *argv[])
@@ -374,6 +389,7 @@ int main(int argc, char *argv[])
   RUN_TEST(MarkerTest::test_static_then_var);
   RUN_TEST(MarkerTest::test_no_reactivate_flag);
   RUN_TEST(MarkerTest::test_no_reactivate_not_set_for_non_correlating_marker);
+  RUN_TEST(MarkerTest::test_timestamps_use_current_time);
 
   if (failures == 0)
   {

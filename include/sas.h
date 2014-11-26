@@ -151,9 +151,7 @@ public:
       _id(id),
       _instance(instance),
       _static_params(),
-      _var_params(),
-      _timestamp(0),
-      _timestamp_set(false)
+      _var_params()
     {
     }
 
@@ -218,19 +216,12 @@ public:
     }
 #endif
 
-    inline Message& set_timestamp(Timestamp timestamp)
-    {
-      _timestamp = timestamp;
-      _timestamp_set = true;
-      return *this;
-    }
-
     friend class SAS;
 
   protected:
     size_t params_buf_len() const;
     void write_params(std::string& s) const;
-    Timestamp get_timestamp() const;
+    virtual Timestamp get_timestamp() const;
 
   private:
     TrailId _trail;
@@ -238,8 +229,6 @@ public:
     uint32_t _instance;
     std::vector<uint32_t> _static_params;
     std::vector<std::string> _var_params;
-    Timestamp _timestamp;
-    bool _timestamp_set;
   };
 
   class Event : public Message
@@ -254,11 +243,26 @@ public:
     inline Event(TrailId trail, uint32_t event, uint32_t instance) :
       Message(trail,
               ((event & 0x00FFFFFF) | 0x0F000000),
-              instance)
+              instance),
+      _timestamp(0),
+      _timestamp_set(false)
     {
     }
 
+    inline Event& set_timestamp(Timestamp timestamp)
+    {
+      _timestamp = timestamp;
+      _timestamp_set = true;
+      return *this;
+    }
+
+    Timestamp get_timestamp() const;
+
     std::string to_string() const;
+
+  protected:
+    Timestamp _timestamp;
+    bool _timestamp_set;
   };
 
   class Marker : public Message
