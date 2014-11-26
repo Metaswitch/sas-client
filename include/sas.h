@@ -62,11 +62,11 @@
 // format x.y.z
 // The SAS Client library uses semantic versioning. This means:
 // We use a three-part version number: <major version>.<minor version>.<patch>
-// * The Patch number is incremented for bug fix releases.  
-// * The Minor version number is incremented for releases that add new API 
-//   features, but are fully backwards compatible.  
-// * The Major version number must be incremented for releases that break 
-//   backwards compatibility in any way.  
+// * The Patch number is incremented for bug fix releases.
+// * The Minor version number is incremented for releases that add new API
+//   features, but are fully backwards compatible.
+// * The Major version number must be incremented for releases that break
+//   backwards compatibility in any way.
 #define SAS_CLIENT_VERSION = "1.0.0"
 
 // Marker IDs
@@ -99,6 +99,7 @@ class SAS
 {
 public:
   typedef uint64_t TrailId;
+  typedef uint64_t Timestamp;
 
 #if HAVE_ZLIB_H
   // Compression-related classes are only available if zlib is
@@ -220,6 +221,7 @@ public:
   protected:
     size_t params_buf_len() const;
     void write_params(std::string& s) const;
+    virtual Timestamp get_timestamp() const;
 
   private:
     TrailId _trail;
@@ -241,11 +243,26 @@ public:
     inline Event(TrailId trail, uint32_t event, uint32_t instance) :
       Message(trail,
               ((event & 0x00FFFFFF) | 0x0F000000),
-              instance)
+              instance),
+      _timestamp(0),
+      _timestamp_set(false)
     {
     }
 
+    inline Event& set_timestamp(Timestamp timestamp)
+    {
+      _timestamp = timestamp;
+      _timestamp_set = true;
+      return *this;
+    }
+
+    Timestamp get_timestamp() const;
+
     std::string to_string() const;
+
+  protected:
+    Timestamp _timestamp;
+    bool _timestamp_set;
   };
 
   class Marker : public Message
@@ -307,9 +324,14 @@ public:
                             Marker::Scope scope = Marker::Scope::None,
                             bool reactivate = true);
 
+  static Timestamp get_current_timestamp();
+
 private:
 
-  static void write_hdr(std::string& s, uint16_t msg_length, uint8_t msg_type);
+  static void write_hdr(std::string& s,
+                        uint16_t msg_length,
+                        uint8_t msg_type,
+                        Timestamp timestamp);
   static void write_int8(std::string& s, uint8_t c);
   static void write_int16(std::string& s, uint16_t v);
   static void write_int32(std::string& s, uint32_t v);
