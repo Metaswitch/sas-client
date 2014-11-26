@@ -152,6 +152,33 @@ void test_var_then_static()
   ASSERT_PRINT_BYTES(expected.static_params[0] == 1000, bytes);
   ASSERT_PRINT_BYTES(expected.var_params[0] == "hello", bytes);
 }
+
+void test_timestamps_default_to_current_time()
+{
+  SAS::Event event(111, 222, 333);
+  std::string bytes = event.to_string();
+
+  SasTest::Event expected;
+  expected.parse(bytes);
+
+  // Check the timestamp is approximately equal to the current time. Allow 5s
+  // either way in case we are running slowly (under Valgrind for example).
+  SAS::Timestamp ts = (time(NULL) * 1000);
+  ASSERT_PRINT_BYTES(expected.timestamp > (ts - 5000), bytes);
+  ASSERT_PRINT_BYTES(expected.timestamp < (ts + 5000), bytes);
+}
+
+void test_timestamps_can_be_overriden()
+{
+  SAS::Event event(111, 222, 333);
+  event.set_timestamp(444);
+  std::string bytes = event.to_string();
+
+  SasTest::Event expected;
+  expected.parse(bytes);
+
+  ASSERT_PRINT_BYTES(expected.timestamp == 444, bytes);
+}
 } // namespace EventTest
 
 //
@@ -322,6 +349,21 @@ void test_no_reactivate_not_set_for_non_correlating_marker()
   ASSERT_PRINT_BYTES(!expected.associate, bytes);
   ASSERT_PRINT_BYTES(!expected.no_reactivate, bytes);
 }
+
+void test_timestamps_use_current_time()
+{
+  SAS::Marker marker(111, 222, 333);
+  std::string bytes = marker.to_string(SAS::Marker::None, false);
+
+  SasTest::Marker expected;
+  expected.parse(bytes);
+
+  // Check the timestamp is approximately equal to the current time. Allow 5s
+  // either way in case we are running slowly (under Valgrind for example).
+  SAS::Timestamp ts = (time(NULL) * 1000);
+  ASSERT_PRINT_BYTES(expected.timestamp > (ts - 5000), bytes);
+  ASSERT_PRINT_BYTES(expected.timestamp < (ts + 5000), bytes);
+}
 } // namespace MarkerTest
 
 int main(int argc, char *argv[])
@@ -333,6 +375,8 @@ int main(int argc, char *argv[])
   RUN_TEST(EventTest::test_two_var_params);
   RUN_TEST(EventTest::test_var_then_static);
   RUN_TEST(EventTest::test_static_then_var);
+  RUN_TEST(EventTest::test_timestamps_default_to_current_time);
+  RUN_TEST(EventTest::test_timestamps_can_be_overriden);
 
   RUN_TEST(MarkerTest::test_empty);
   RUN_TEST(MarkerTest::test_branch_scope_correlator);
@@ -345,6 +389,7 @@ int main(int argc, char *argv[])
   RUN_TEST(MarkerTest::test_static_then_var);
   RUN_TEST(MarkerTest::test_no_reactivate_flag);
   RUN_TEST(MarkerTest::test_no_reactivate_not_set_for_non_correlating_marker);
+  RUN_TEST(MarkerTest::test_timestamps_use_current_time);
 
   if (failures == 0)
   {
