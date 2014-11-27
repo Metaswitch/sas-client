@@ -550,13 +550,6 @@ void SAS::Message::write_params(std::string& s) const
 }
 
 
-// Get the timestamp to be used on the message.
-SAS::Timestamp SAS::Message::get_timestamp() const
-{
-  return SAS::get_current_timestamp();
-}
-
-
 std::string SAS::Event::to_string() const
 {
   size_t len = EVENT_HDR_SIZE + params_buf_len();
@@ -619,6 +612,13 @@ std::string SAS::Marker::to_string(Marker::Scope scope, bool reactivate) const
   write_params(s);
 
   return std::move(s);
+}
+
+
+// Get the timestamp to be used on the message.
+SAS::Timestamp SAS::Marker::get_timestamp() const
+{
+  return SAS::get_current_timestamp();
 }
 
 
