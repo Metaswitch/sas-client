@@ -221,7 +221,6 @@ public:
   protected:
     size_t params_buf_len() const;
     void write_params(std::string& s) const;
-    virtual Timestamp get_timestamp() const;
 
   private:
     TrailId _trail;
@@ -279,6 +278,8 @@ public:
       Branch = 1,
       Trace = 2
     };
+
+    Timestamp get_timestamp() const;
 
     std::string to_string(Scope scope, bool reactivate) const;
   };
