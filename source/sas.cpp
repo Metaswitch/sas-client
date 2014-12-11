@@ -77,6 +77,9 @@ private:
   bool connect_init();
   void writer();
 
+  static int create_tcp_connection(const std::string& sas_address);
+  static int get_tcp_connection_from_factory(const std::string& sas_address);
+
   std::string _system_name;
   std::string _system_type;
   std::string _resource_identifier;
@@ -290,23 +293,24 @@ void SAS::Connection::writer()
 }
 
 
-bool SAS::Connection::connect_init()
+int SAS::Connection::create_tcp_connection(const std::string& sas_address)
 {
   int rc;
+  int sock;
   struct addrinfo hints, *addrs;
 
-  SAS_LOG_STATUS("Attempting to connect to SAS %s", _sas_address.c_str());
+  SAS_LOG_STATUS("Attempting to connect to SAS %s", sas_address.c_str());
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
 
-  rc = getaddrinfo(_sas_address.c_str(), SAS_PORT, &hints, &addrs);
+  rc = getaddrinfo(sas_address.c_str(), SAS_PORT, &hints, &addrs);
 
   if (rc != 0)
   {
     SAS_LOG_ERROR("Failed to get addresses for SAS %s:%s : %d %s",
-                     _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
+                     sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
     return false;
   }
 
@@ -323,33 +327,34 @@ bool SAS::Connection::connect_init()
 
   for (p = addrs; p != NULL; p = p->ai_next)
   {
-    if ((_sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+    sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+    if (sock < 0)
     {
       // There was an error opening the socket - try the next address
       SAS_LOG_DEBUG("Failed to open socket");
       continue;
     }
 
-    rc = ::setsockopt(_sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
+    rc = ::setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
                                                               sizeof(timeout));
 
     if (rc < 0)
     {
       SAS_LOG_ERROR("Failed to set send timeout on SAS connection : %d %d %s",
                                                  rc, errno, ::strerror(errno));
-      ::close(_sock);
-      _sock = -1;
+      ::close(sock);
+      sock = -1;
       continue;
     }
 
-    rc = ::connect(_sock, p->ai_addr, p->ai_addrlen);
+    rc = ::connect(sock, p->ai_addr, p->ai_addrlen);
 
     if (rc < 0)
     {
       // There was an error connecting - try the next address
       SAS_LOG_DEBUG("Failed to connect to address: %s", p->ai_addr);
-      ::close(_sock);
-      _sock = -1;
+      ::close(sock);
+      sock = -1;
       continue;
     }
 
@@ -357,15 +362,32 @@ bool SAS::Connection::connect_init()
     break;
   }
 
+  freeaddrinfo(addrs);
+
   if (rc != 0)
   {
-    SAS_LOG_ERROR("Failed to connect to SAS %s:%s : %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
+    SAS_LOG_ERROR("Failed to connect to SAS %s:%s : %d %s",
+                  sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
     return false;
   }
 
-  freeaddrinfo(addrs);
+  SAS_LOG_DEBUG("Connected SAS socket to %s:%s", sas_address.c_str(), SAS_PORT);
 
-  SAS_LOG_DEBUG("Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
+  return sock;
+}
+
+
+bool SAS::Connection::connect_init()
+{
+  int rc;
+
+  _sock = create_tcp_connection(_sas_address);
+
+  if (_sock < 0)
+  {
+    // The function to create the connection has already logged the error.
+    return false;
+  }
 
   // Send an init message to SAS.
   std::string init;
