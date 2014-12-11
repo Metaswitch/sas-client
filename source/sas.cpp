@@ -42,6 +42,7 @@
 #include <stdarg.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sys/un.h>
 
 #include "sas.h"
 #include "sas_eventq.h"
@@ -79,6 +80,7 @@ private:
 
   static int create_tcp_connection(const std::string& sas_address);
   static int get_tcp_connection_from_factory(const std::string& sas_address);
+  static int recv_file_descriptor(int sock);
 
   std::string _system_name;
   std::string _system_type;
@@ -374,6 +376,115 @@ int SAS::Connection::create_tcp_connection(const std::string& sas_address)
   SAS_LOG_DEBUG("Connected SAS socket to %s:%s", sas_address.c_str(), SAS_PORT);
 
   return sock;
+}
+
+int SAS::Connection::recv_file_descriptor(int sock)
+{
+  struct msghdr message;
+  struct iovec iov[1];
+  struct cmsghdr *control_message = NULL;
+  char ctrl_buf[CMSG_SPACE(sizeof(int))];
+  char data[1];
+  int res;
+
+  memset(&message, 0, sizeof(struct msghdr));
+  memset(ctrl_buf, 0, CMSG_SPACE(sizeof(int)));
+
+  /* For the dummy data */
+  iov[0].iov_base = data;
+  iov[0].iov_len = sizeof(data);
+
+  message.msg_name = NULL;
+  message.msg_namelen = 0;
+  message.msg_control = ctrl_buf;
+  message.msg_controllen = CMSG_SPACE(sizeof(int));
+  message.msg_iov = iov;
+  message.msg_iovlen = 1;
+
+  if((res = recvmsg(sock, &message, 0)) <= 0)
+    return res;
+
+  /* Iterate through header to find if there is a file descriptor */
+  for (control_message = CMSG_FIRSTHDR(&message);
+       control_message != NULL;
+       control_message = CMSG_NXTHDR(&message,
+                                    control_message))
+  {
+    if ((control_message->cmsg_level == SOL_SOCKET) &&
+        (control_message->cmsg_type == SCM_RIGHTS))
+    {
+      return *((int *) CMSG_DATA(control_message));
+    }
+  }
+
+  return -1;
+}
+
+
+int SAS::Connection::get_tcp_connection_from_factory(const std::string& sas_address)
+{
+  struct sockaddr_un addr = {0};
+  int fd;
+  const static char* SOCKET_PATH = "/tmp/clearwater_mgmt_namespace_socket";
+
+  SAS_LOG_DEBUG("Attempt to connect to SAS %s", sas_address.c_str());
+
+  if ((fd = ::socket(AF_LOCAL, SOCK_STREAM, 0)) < 0)
+  {
+    SAS_LOG_ERROR("Failed to create unix socket: %d, %s", errno, ::strerror(errno));
+    return fd;
+  }
+
+  // Set a maximum send timeout on the unix socket so we don't wait forever if
+  // factory fails.
+  struct timeval timeout;
+  timeout.tv_sec = SEND_TIMEOUT;
+  timeout.tv_usec = 0;
+
+  if (::setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+  {
+    SAS_LOG_ERROR("Failed to set timeout on unix socket : %d %s",
+                  errno, ::strerror(errno));
+    ::close(fd);
+    return -1;
+  }
+
+  addr.sun_family = AF_LOCAL;
+  strcpy(addr.sun_path, SOCKET_PATH);
+
+  if (::connect(fd, (struct sockaddr *) &(addr), sizeof(addr)) < 0)
+  {
+    SAS_LOG_ERROR("Failed to connect unix socket at %s: %d, %s",
+                  SOCKET_PATH, errno, ::strerror(errno));
+    ::close(fd);
+    return -2;
+  }
+
+  std::string target;
+  target.append(sas_address).append(":").append(SAS_PORT);
+
+  if (::send(fd, target.c_str(), target.length(), 0) < 0)
+  {
+    SAS_LOG_ERROR("Error sending target '%s' to server: %d %s",
+                  target.c_str(), errno, ::strerror(errno));
+    return -3;
+  }
+
+  int tcp_sock = recv_file_descriptor(fd);
+  ::close(fd);
+
+  // Also set a send timeout on the TCP socket so we don't wait forever if SAS
+  // fails.
+  if (::setsockopt(tcp_sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+  {
+    SAS_LOG_ERROR("Failed to set timeout on TCP socket : %d %s",
+                  errno, ::strerror(errno));
+    ::close(tcp_sock);
+    return -4;
+  }
+
+  SAS_LOG_DEBUG("Connection successful");
+  return tcp_sock;
 }
 
 
