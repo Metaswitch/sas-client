@@ -402,7 +402,11 @@ int SAS::Connection::recv_file_descriptor(int sock)
   message.msg_iovlen = 1;
 
   if((res = recvmsg(sock, &message, 0)) <= 0)
-    return res;
+  {
+    SAS_LOG_ERROR("Error receiving socket for TCP connection, recvmsg returned %d (%d %s)",
+                  res, errno, ::strerror(errno));
+    return -1;
+  }
 
   /* Iterate through header to find if there is a file descriptor */
   for (control_message = CMSG_FIRSTHDR(&message);
@@ -417,7 +421,8 @@ int SAS::Connection::recv_file_descriptor(int sock)
     }
   }
 
-  return -1;
+  SAS_LOG_ERROR("No socket received from server");
+  return -2;
 }
 
 
@@ -475,8 +480,6 @@ int SAS::Connection::get_tcp_connection_from_factory(const std::string& sas_addr
 
   if (tcp_sock < 0)
   {
-    SAS_LOG_ERROR("Failed to get TCP socket : %d %s",
-                  errno, ::strerror(errno));
     return -4;
   }
 
