@@ -473,6 +473,13 @@ int SAS::Connection::get_tcp_connection_from_factory(const std::string& sas_addr
   int tcp_sock = recv_file_descriptor(fd);
   ::close(fd);
 
+  if (tcp_sock < 0)
+  {
+    SAS_LOG_ERROR("Failed to get TCP socket : %d %s",
+                  errno, ::strerror(errno));
+    return -4;
+  }
+
   // Also set a send timeout on the TCP socket so we don't wait forever if SAS
   // fails.
   if (::setsockopt(tcp_sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
@@ -480,7 +487,7 @@ int SAS::Connection::get_tcp_connection_from_factory(const std::string& sas_addr
     SAS_LOG_ERROR("Failed to set timeout on TCP socket : %d %s",
                   errno, ::strerror(errno));
     ::close(tcp_sock);
-    return -4;
+    return -5;
   }
 
   SAS_LOG_DEBUG("Connection successful");
