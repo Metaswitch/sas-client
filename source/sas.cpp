@@ -492,7 +492,7 @@ bool SAS::Connection::connect_init()
 {
   int rc;
 
-  _sock = create_tcp_connection(_sas_address);
+  _sock = get_tcp_connection_from_factory(_sas_address);
 
   if (_sock < 0)
   {
