@@ -42,6 +42,7 @@
 #include <stdarg.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sys/un.h>
 
 #include "sas.h"
 #include "sas_eventq.h"
@@ -76,6 +77,10 @@ public:
 private:
   bool connect_init();
   void writer();
+
+  static int create_tcp_connection(const std::string& sas_address);
+  static int get_tcp_connection_from_factory(const std::string& sas_address);
+  static int recv_file_descriptor(int sock);
 
   std::string _system_name;
   std::string _system_type;
@@ -290,23 +295,24 @@ void SAS::Connection::writer()
 }
 
 
-bool SAS::Connection::connect_init()
+int SAS::Connection::create_tcp_connection(const std::string& sas_address)
 {
   int rc;
+  int sock;
   struct addrinfo hints, *addrs;
 
-  SAS_LOG_STATUS("Attempting to connect to SAS %s", _sas_address.c_str());
+  SAS_LOG_STATUS("Attempting to connect to SAS %s", sas_address.c_str());
 
-  memset(&hints, 0, sizeof hints);
+  ::memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
 
-  rc = getaddrinfo(_sas_address.c_str(), SAS_PORT, &hints, &addrs);
+  rc = ::getaddrinfo(sas_address.c_str(), SAS_PORT, &hints, &addrs);
 
   if (rc != 0)
   {
-    SAS_LOG_ERROR("Failed to get addresses for SAS %s:%s : %d %s",
-                     _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
+    SAS_LOG_ERROR("Failed to get addresses for SAS %s:%s: %d %s",
+                     sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
     return false;
   }
 
@@ -323,33 +329,34 @@ bool SAS::Connection::connect_init()
 
   for (p = addrs; p != NULL; p = p->ai_next)
   {
-    if ((_sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+    sock = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+    if (sock < 0)
     {
       // There was an error opening the socket - try the next address
       SAS_LOG_DEBUG("Failed to open socket");
       continue;
     }
 
-    rc = ::setsockopt(_sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
+    rc = ::setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
                                                               sizeof(timeout));
 
     if (rc < 0)
     {
-      SAS_LOG_ERROR("Failed to set send timeout on SAS connection : %d %d %s",
+      SAS_LOG_ERROR("Failed to set send timeout on SAS connection: %d %d %s",
                                                  rc, errno, ::strerror(errno));
-      ::close(_sock);
-      _sock = -1;
+      ::close(sock);
+      sock = -1;
       continue;
     }
 
-    rc = ::connect(_sock, p->ai_addr, p->ai_addrlen);
+    rc = ::connect(sock, p->ai_addr, p->ai_addrlen);
 
     if (rc < 0)
     {
       // There was an error connecting - try the next address
       SAS_LOG_DEBUG("Failed to connect to address: %s", p->ai_addr);
-      ::close(_sock);
-      _sock = -1;
+      ::close(sock);
+      sock = -1;
       continue;
     }
 
@@ -357,15 +364,151 @@ bool SAS::Connection::connect_init()
     break;
   }
 
+  ::freeaddrinfo(addrs);
+
   if (rc != 0)
   {
-    SAS_LOG_ERROR("Failed to connect to SAS %s:%s : %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
+    SAS_LOG_ERROR("Failed to connect to SAS %s:%s: %d %s",
+                  sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
     return false;
   }
 
-  freeaddrinfo(addrs);
+  SAS_LOG_DEBUG("Connected SAS socket to %s:%s", sas_address.c_str(), SAS_PORT);
 
-  SAS_LOG_DEBUG("Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
+  return sock;
+}
+
+int SAS::Connection::recv_file_descriptor(int sock)
+{
+  struct msghdr message;
+  struct iovec iov[1];
+  struct cmsghdr *control_message = NULL;
+  char ctrl_buf[CMSG_SPACE(sizeof(int))];
+  char data[1];
+  int res;
+
+  ::memset(&message, 0, sizeof(struct msghdr));
+  ::memset(ctrl_buf, 0, CMSG_SPACE(sizeof(int)));
+
+  /* For the dummy data */
+  iov[0].iov_base = data;
+  iov[0].iov_len = sizeof(data);
+
+  message.msg_name = NULL;
+  message.msg_namelen = 0;
+  message.msg_control = ctrl_buf;
+  message.msg_controllen = CMSG_SPACE(sizeof(int));
+  message.msg_iov = iov;
+  message.msg_iovlen = 1;
+
+  if((res = ::recvmsg(sock, &message, 0)) <= 0)
+  {
+    SAS_LOG_ERROR("Error receiving socket for TCP connection, recvmsg returned %d (%d %s)",
+                  res, errno, ::strerror(errno));
+    return -1;
+  }
+
+  /* Iterate through header to find if there is a file descriptor */
+  for (control_message = CMSG_FIRSTHDR(&message);
+       control_message != NULL;
+       control_message = CMSG_NXTHDR(&message,
+                                    control_message))
+  {
+    if ((control_message->cmsg_level == SOL_SOCKET) &&
+        (control_message->cmsg_type == SCM_RIGHTS))
+    {
+      return *((int *) CMSG_DATA(control_message));
+    }
+  }
+
+  SAS_LOG_ERROR("No socket received from server");
+  return -2;
+}
+
+
+int SAS::Connection::get_tcp_connection_from_factory(const std::string& sas_address)
+{
+  struct sockaddr_un addr = {0};
+  int fd;
+  const static char* SOCKET_PATH = "/tmp/clearwater_mgmt_namespace_socket";
+
+  SAS_LOG_DEBUG("Attempt to connect to SAS %s", sas_address.c_str());
+
+  if ((fd = ::socket(AF_LOCAL, SOCK_STREAM, 0)) < 0)
+  {
+    SAS_LOG_ERROR("Failed to create unix socket: %d, %s", errno, ::strerror(errno));
+    return fd;
+  }
+
+  // Set a maximum send timeout on the unix socket so we don't wait forever if
+  // factory fails.
+  struct timeval timeout;
+  timeout.tv_sec = SEND_TIMEOUT;
+  timeout.tv_usec = 0;
+
+  if (::setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+  {
+    SAS_LOG_ERROR("Failed to set timeout on unix socket: %d %s",
+                  errno, ::strerror(errno));
+    ::close(fd);
+    return -1;
+  }
+
+  addr.sun_family = AF_LOCAL;
+  ::strcpy(addr.sun_path, SOCKET_PATH);
+
+  if (::connect(fd, (struct sockaddr *) &(addr), sizeof(addr)) < 0)
+  {
+    SAS_LOG_ERROR("Failed to connect unix socket at %s: %d, %s",
+                  SOCKET_PATH, errno, ::strerror(errno));
+    ::close(fd);
+    return -2;
+  }
+
+  std::string target;
+  target.append(sas_address).append(":").append(SAS_PORT);
+
+  if (::send(fd, target.c_str(), target.length(), 0) < 0)
+  {
+    SAS_LOG_ERROR("Error sending target '%s' to server: %d %s",
+                  target.c_str(), errno, ::strerror(errno));
+    return -3;
+  }
+
+  int tcp_sock = recv_file_descriptor(fd);
+  ::close(fd);
+
+  if (tcp_sock < 0)
+  {
+    return -4;
+  }
+
+  // Also set a send timeout on the TCP socket so we don't wait forever if SAS
+  // fails.
+  if (::setsockopt(tcp_sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+  {
+    SAS_LOG_ERROR("Failed to set timeout on TCP socket: %d %s",
+                  errno, ::strerror(errno));
+    ::close(tcp_sock);
+    return -5;
+  }
+
+  SAS_LOG_DEBUG("Connection successful");
+  return tcp_sock;
+}
+
+
+bool SAS::Connection::connect_init()
+{
+  int rc;
+
+  _sock = get_tcp_connection_from_factory(_sas_address);
+
+  if (_sock < 0)
+  {
+    // The function to create the connection has already logged the error.
+    return false;
+  }
 
   // Send an init message to SAS.
   std::string init;
