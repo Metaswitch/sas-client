@@ -290,7 +290,7 @@ void SAS::Connection::writer()
         {
             _msg_q.purge();
         }
-        usleep(1000);
+        usleep(1000 * 1000);
         reconnect_timeout -= 1000;
     }
     if (_msg_q.is_terminated())
