@@ -281,12 +281,15 @@ void SAS::Connection::writer()
       reconnect_timeout = 1000;
     }
 
-    // Wait on the input queue for the specified timeout before trying to
-    // reconnect.  We wait on the queue so we get a kick if the term function
-    // is called.
-    std::string msg;
+    // Wait for the specified timeout before trying to
+    // reconnect.
     SAS_LOG_DEBUG("Waiting to reconnect to SAS - timeout = %d", reconnect_timeout);
-    if (!_msg_q.pop(msg, reconnect_timeout))
+    while (reconnect_timeout > 0 && !_msg_q.is_terminated())
+    {
+      usleep(1000 * 1000);
+      reconnect_timeout -= 1000;
+    }
+    if (_msg_q.is_terminated())
     {
       // Received a termination signal on the queue, so exit.
       break;
