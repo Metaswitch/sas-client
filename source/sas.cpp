@@ -286,17 +286,13 @@ void SAS::Connection::writer()
     SAS_LOG_DEBUG("Waiting to reconnect to SAS - timeout = %d", reconnect_timeout);
     while (reconnect_timeout > 0 && !_msg_q.is_terminated())
     {
-        if (_msg_q.size() > 5000)
-        {
-            _msg_q.purge();
-        }
-        usleep(1000 * 1000);
-        reconnect_timeout -= 1000;
+      usleep(1000 * 1000);
+      reconnect_timeout -= 1000;
     }
     if (_msg_q.is_terminated())
     {
-        // Received a termination signal on the queue, so exit.
-        break;
+      // Received a termination signal on the queue, so exit.
+      break;
     }
   }
 }
