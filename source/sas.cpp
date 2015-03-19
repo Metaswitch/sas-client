@@ -459,6 +459,21 @@ void SAS::report_marker(const Marker& marker, Marker::Scope scope, bool reactiva
   }
 }
 
+void SAS::associate_trails(TrailId trail_a,
+                           TrailId trail_b,
+                           Marker::Scope scope)
+{
+  std::string trail_assoc_msg;
+  write_hdr(trail_assoc_msg, 29, SAS_MSG_TRAIL_ASSOC, get_current_timestamp());
+  write_trail(trail_assoc_msg, trail_a);
+  write_trail(trail_assoc_msg, trail_b);
+  write_int8(trail_assoc_msg, (uint8_t)scope);
+  if (_connection)
+  {
+    _connection->send_msg(trail_assoc_msg);
+  }
+}
+
 
 SAS::Timestamp SAS::get_current_timestamp()
 {

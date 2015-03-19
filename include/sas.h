@@ -324,6 +324,9 @@ public:
   static void report_marker(const Marker& marker,
                             Marker::Scope scope = Marker::Scope::None,
                             bool reactivate = true);
+  static void associate_trails(TrailId trail_a,
+                               TrailId trail_b,
+                               Marker::Scope scope = Marker::Scope::Branch);
 
   static Timestamp get_current_timestamp();
 
