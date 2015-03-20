@@ -49,6 +49,7 @@
 
 // SAS message types.
 const int SAS_MSG_INIT   = 1;
+const int SAS_MSG_TRAIL_ASSOC   = 2;
 const int SAS_MSG_EVENT  = 3;
 const int SAS_MSG_MARKER = 4;
 

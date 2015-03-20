@@ -88,6 +88,7 @@ private:
   std::string _sas_address;
 
   SASeventq<std::string> _msg_q;
+  bool _connected;
 
   pthread_t _writer;
 
@@ -95,7 +96,7 @@ private:
   int _sock;
 
   /// Send timeout for the socket in seconds.
-  static const int SEND_TIMEOUT = 30;
+  static const int SEND_TIMEOUT = 5;
 
   /// Maximum depth of SAS message queue.
   static const int MAX_MSG_QUEUE = 1000;
@@ -206,6 +207,16 @@ SAS::Connection::~Connection()
     // Signal the writer thread to disconnect the socket and end.
     _msg_q.terminate();
 
+    // If we haven't yet connected, we can cancel the thread - there's
+    // no risk of truncating data mid-write. This prevents termination
+    // from taking an unnecessarily long time when SAS is unreachable
+    // (which would happen if we didn't cancel the thread and instead
+    // waited for connect() to time out).
+    if (!_connected)
+    {
+      pthread_cancel(_writer);
+    }
+
     // Wait for the writer thread to exit.
     pthread_join(_writer, NULL);
 
@@ -226,9 +237,10 @@ void SAS::Connection::writer()
   while (true)
   {
     int reconnect_timeout = 10000;  // If connect fails, retry every 10 seconds.
-
+    _connected = false;
     if (connect_init())
     {
+      _connected = true;
       // Now can start dequeuing and sending data.
       std::string msg;
       while ((_sock != -1) && (_msg_q.pop(msg)))
@@ -587,6 +599,21 @@ void SAS::report_marker(const Marker& marker, Marker::Scope scope, bool reactiva
   if (_connection)
   {
     _connection->send_msg(marker.to_string(scope, reactivate));
+  }
+}
+
+void SAS::associate_trails(TrailId trail_a,
+                           TrailId trail_b,
+                           Marker::Scope scope)
+{
+  std::string trail_assoc_msg;
+  write_hdr(trail_assoc_msg, 29, SAS_MSG_TRAIL_ASSOC, get_current_timestamp());
+  write_trail(trail_assoc_msg, trail_a);
+  write_trail(trail_assoc_msg, trail_b);
+  write_int8(trail_assoc_msg, (uint8_t)scope);
+  if (_connection)
+  {
+    _connection->send_msg(trail_assoc_msg);
   }
 }
 
