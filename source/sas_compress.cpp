@@ -40,6 +40,7 @@
 #include <netdb.h>
 #include <stdarg.h>
 #include <sys/socket.h>
+#include <pthread.h>
 
 #include "sas.h"
 #include "sas_internal.h"

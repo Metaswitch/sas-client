@@ -42,6 +42,8 @@
 
 #include <queue>
 
+#include "compat_time.h"
+
 template<class T>
 class SASeventq
 {
