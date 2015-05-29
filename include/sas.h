@@ -76,6 +76,7 @@ static const int MARKER_ID_END = 0x01000004;
 static const int MARKER_ID_DIALED_DIGITS = 0x01000005;
 static const int MARKER_ID_CALLING_DN = 0x01000006;
 static const int MARKER_ID_CALLED_DN = 0x01000007;
+static const int MARKER_ID_MVD_MOVABLE_BLOCK = 0x01000015;
 static const int MARKED_ID_GENERIC_CORRELATOR = 0x01000016;
 static const int MARKED_ID_FLUSH = 0x01000017;
 
