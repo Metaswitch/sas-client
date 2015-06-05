@@ -238,8 +238,14 @@ void SAS::Connection::writer()
       _connected = true;
       // Now can start dequeuing and sending data.
       std::string msg;
-      while ((_sock != -1) && (_msg_q.pop(msg)))
+      while ((_sock != -1) && _msg_q.pop(msg, 1000))
       {
+        if (msg.empty())
+        {
+          // No real messages for a second, so send a heartbeat message
+          msg = SAS::heartbeat_msg();
+        }
+
         int len = msg.length();
         char* buf = (char*)msg.data();
         while (len > 0)
@@ -273,6 +279,7 @@ void SAS::Connection::writer()
             break;
           }
         }
+        msg.clear();
       }
 
       // Terminate the socket.
@@ -473,6 +480,16 @@ void SAS::associate_trails(TrailId trail_a,
     _connection->send_msg(trail_assoc_msg);
   }
 }
+
+std::string SAS::heartbeat_msg()
+{
+  std::string s;
+  SAS::write_int16(s, 4);
+  SAS::write_int8(s, 3);             // Version = 3
+  SAS::write_int8(s, 5);             // Type = Heartbeat
+  return s;
+}
+
 
 
 SAS::Timestamp SAS::get_current_timestamp()

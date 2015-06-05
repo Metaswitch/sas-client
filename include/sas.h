@@ -343,6 +343,8 @@ private:
   static void write_data(std::string& s, size_t length, const char* data);
   static void write_timestamp(std::string& s);
   static void write_trail(std::string& s, TrailId trail);
+  
+  static std::string heartbeat_msg();
 
   static std::atomic<TrailId> _next_trail_id;
   class Connection;
