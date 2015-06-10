@@ -146,7 +146,7 @@ public:
 
     inline Message(TrailId trail,
                    uint32_t id,
-                   uint32_t instance) :
+                   uint32_t instance=0u) :
       _trail(trail),
       _id(id),
       _instance(instance),
@@ -239,7 +239,7 @@ public:
     //   - The top nibble, which is reserved for future use and must be set to
     //     0x0.
     //   - the bottom nibble, which SAS requires be set to the value 0xF.
-    inline Event(TrailId trail, uint32_t event, uint32_t instance) :
+    inline Event(TrailId trail, uint32_t event, uint32_t instance=0u) :
       Message(trail,
               ((event & 0x00FFFFFF) | 0x0F000000),
               instance),
@@ -267,7 +267,7 @@ public:
   class Marker : public Message
   {
   public:
-    inline Marker(TrailId trail, uint32_t marker, uint32_t instance) :
+    inline Marker(TrailId trail, uint32_t marker, uint32_t instance=0u) :
       Message(trail, marker, instance)
     {
     }
@@ -319,7 +319,7 @@ public:
                    const std::string& sas_address,
                    sas_log_callback_t* log_callback);
   static void term();
-  static TrailId new_trail(uint32_t instance);
+  static TrailId new_trail(uint32_t instance=0u);
   static void report_event(const Event& event);
   static void report_marker(const Marker& marker,
                             Marker::Scope scope = Marker::Scope::None,
