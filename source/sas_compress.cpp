@@ -89,7 +89,7 @@ SAS::Compressor::Compressor()
   _stream.zfree = Z_NULL;
   _stream.opaque = Z_NULL;
   int rc = deflateInit2(&_stream,
-                        Z_DEFAULT_COMPRESSION,
+                        Z_BEST_SPEED,
                         Z_DEFLATED,
                         WINDOW_BITS,
                         MEM_LEVEL,
