@@ -128,9 +128,8 @@ public:
     Compressor();
     ~Compressor();
 
-    // Window bits -15 gives maximum window and no header/footer (which saves
-    // space).
-    static const int WINDOW_BITS = -15;
+    // Window bits 15 gives maximum window.
+    static const int WINDOW_BITS = 15;
     // Mem level (1-9) is a trade-off between memory usage (1 is least, 9 is
     // most) and speed/compression performance (1 is worst, 9 is best).  We
     // don't really care about memory usage (we don't allocate many
