@@ -132,8 +132,17 @@ public:
     Compressor();
     ~Compressor();
 
+    // Window bits 15 gives maximum window.
     static const int WINDOW_BITS = 15;
-    static const int MEM_LEVEL = 9;
+    // Mem level (1-9) is a trade-off between memory usage (1 is least, 9 is
+    // most) and speed/compression performance (1 is worst, 9 is best).  We
+    // don't really care about memory usage (we don't allocate many
+    // compressors) but we do re-initialize the compressors frequently
+    // (compared to the number of bytes we compress), and more memory takes
+    // longer.  From testing on sample messages, a value of 6 or 7 gives best
+    // performance - we pick 7 to extend well to larger messages if we see
+    // them.
+    static const int MEM_LEVEL = 7;
     // Variables with which to store a compressor on a per-thread basis.
     static pthread_once_t _once;
     static pthread_key_t _key;
