@@ -99,6 +99,8 @@ static const int SAS_INIT_RC_ERR = 1;
 class SAS
 {
 public:
+  static pthread_mutex_t compression_lock;
+
   typedef uint64_t TrailId;
   typedef uint64_t Timestamp;
 
@@ -194,6 +196,30 @@ public:
     // Compression-related methods are only available if zlib is
     inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
     {
+      static const char hextable[16] = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+      };
+      char hexbuf[0x20000];
+      for (size_t i = 0; i < s.length(); i++)
+      {
+        unsigned char c = s[i];
+        hexbuf[2*i] = hextable[c >> 4];
+        hexbuf[2*i + 1] = hextable[c & 0x0F];
+      }
+
+      time_t rawtime;
+      struct tm * timeinfo;
+      char tbuf[80];
+      time (&rawtime);
+      timeinfo = localtime(&rawtime);
+      strftime(tbuf,80,"%FT%TZ",timeinfo);
+
+      pthread_mutex_lock(&SAS::compression_lock);
+      FILE* fout = fopen("/tmp/sas-compression.log", "a");
+      fprintf(fout, "%s,%d,%.*s\n", tbuf, _id, (int)(s.length()*2), hexbuf);
+      fclose(fout);
+      pthread_mutex_unlock(&SAS::compression_lock);
+
       Compressor* compressor = Compressor::get();
       return add_var_param(compressor->compress(s, profile));
     }
@@ -344,7 +370,7 @@ private:
   static void write_data(std::string& s, size_t length, const char* data);
   static void write_timestamp(std::string& s);
   static void write_trail(std::string& s, TrailId trail);
-  
+
   static std::string heartbeat_msg();
 
   static std::atomic<TrailId> _next_trail_id;
