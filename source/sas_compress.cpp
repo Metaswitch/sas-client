@@ -49,6 +49,10 @@
 
 pthread_once_t SAS::Compressor::_once = PTHREAD_ONCE_INIT;
 pthread_key_t SAS::Compressor::_key = {0};
+std::atomic_uint_fast64_t SAS::Compressor::_num_compression_ops(0);
+std::atomic_uint_fast64_t SAS::Compressor::_uncompressed_bytes(0);
+std::atomic_uint_fast64_t SAS::Compressor::_compressed_bytes(0);
+std::atomic_uint_fast64_t SAS::Compressor::_elapsed_time_us(0);
 
 /// Statically initialize the Compressor class by creating the thread-local key.
 void SAS::Compressor::init()
@@ -109,6 +113,10 @@ SAS::Compressor::~Compressor()
 /// Compresses the specified string using the optional profile.
 std::string SAS::Compressor::compress(const std::string& s, const Profile* profile)
 {
+  // Start a timer.
+  SAS::StopWatch stop_watch;
+  stop_watch.start();
+
   // If we have a profile, set its dictionary into the zlib compressor.
   if (profile != NULL)
   {
@@ -142,6 +150,25 @@ std::string SAS::Compressor::compress(const std::string& s, const Profile* profi
 
   // Reset the compressor before we return.
   deflateReset(&_stream);
+
+  // Stop the timer and read its value.
+  (void)stop_watch.stop();
+  unsigned long elapsed_us = 0;
+  (void)stop_watch.read(elapsed_us);
+
+  // Update statistics and print out status irregularly.
+  std::uint_fast64_t num_ops = (_num_compression_ops++);
+  _uncompressed_bytes += s.length();
+  _compressed_bytes += compressed.length();
+  _elapsed_time_us += elapsed_us;
+  if ((num_ops % 1000) == 0)
+  {
+    SAS_LOG_WARNING("%llu SAS compression ops: %llu => %llu in %llu us",
+                    _num_compression_ops.load(),
+                    _uncompressed_bytes.load(),
+                    _compressed_bytes.load(),
+                    _elapsed_time_us.load());
+  }
 
   return compressed;
 }

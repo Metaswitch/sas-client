@@ -133,6 +133,10 @@ public:
     // Variables with which to store a compressor on a per-thread basis.
     static pthread_once_t _once;
     static pthread_key_t _key;
+    static std::atomic_uint_fast64_t _num_compression_ops;
+    static std::atomic_uint_fast64_t _uncompressed_bytes;
+    static std::atomic_uint_fast64_t _compressed_bytes;
+    static std::atomic_uint_fast64_t _elapsed_time_us;
 
     z_stream _stream;
     char _buffer[4096];
@@ -351,6 +355,78 @@ private:
   class Connection;
   static Connection* _connection;
   static sas_log_callback_t* _log_callback;
+
+  /// Measures time delay in microseconds
+  class StopWatch
+  {
+  public:
+    inline StopWatch() : _ok(true), _running(true), _elapsed_us(0) {}
+
+    /// Starts the stop-watch, returning whether it was successful.  It's OK
+    /// to ignore the return code - it will also be returned on read() and
+    /// stop().
+    inline bool start()
+    {
+      _ok = (clock_gettime(CLOCK_MONOTONIC, &_start) == 0);
+
+      if (_ok)
+      {
+        _running = true;
+      }
+
+      return _ok;
+    }
+
+    /// Stops the stop-watch, returning whether it was successful.  The recorded
+    /// time is stored internal and can be read by a subsequent call to read().
+    /// It's OK to ignore the return code to stop() - it will also be returned
+    /// on read().
+    inline bool stop()
+    {
+      if (_running)
+      {
+        _ok = read(_elapsed_us);
+        _running = false;
+      }
+
+      return _ok;
+    }
+
+    /// Reads the stopwatch (which does not have to be stopped) and returns
+    /// whether this was successful. result_us is not valid on failure.
+    inline bool read(unsigned long& result_us)
+    {
+      if (!_ok)
+      {
+        return _ok;
+      }
+
+      if (_running)
+      {
+        struct timespec now;
+        _ok = (clock_gettime(CLOCK_MONOTONIC, &now) == 0);
+
+        if (_ok)
+        {
+          result_us = (now.tv_nsec - _start.tv_nsec) / 1000L +
+                      (now.tv_sec - _start.tv_sec) * 1000000L;
+        }
+      }
+      else
+      {
+        result_us = _elapsed_us;
+      }
+
+      return _ok;
+    }
+
+  private:
+    struct timespec _start;
+    bool _ok;
+    bool _running;
+    unsigned long _elapsed_us;
+  };
+
 };
 
 #endif
