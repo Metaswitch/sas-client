@@ -161,10 +161,10 @@ std::string SAS::Compressor::compress(const std::string& s, const Profile* profi
   _uncompressed_bytes += s.length();
   _compressed_bytes += compressed.length();
   _elapsed_time_us += elapsed_us;
-  if ((num_ops % 1000) == 0)
+  if ((num_ops % SAS_STATS_PERIOD) == 0)
   {
     SAS_LOG_WARNING("%llu SAS compression ops: %llu => %llu in %llu us",
-                    _num_compression_ops.load(),
+                    num_ops,
                     _uncompressed_bytes.load(),
                     _compressed_bytes.load(),
                     _elapsed_time_us.load());

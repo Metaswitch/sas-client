@@ -46,6 +46,7 @@
 
 #define SAS_LOG(...) _log_callback(__VA_ARGS__)
 
+#define SAS_STATS_PERIOD 1
 
 // SAS message types.
 const int SAS_MSG_INIT   = 1;
