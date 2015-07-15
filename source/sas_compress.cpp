@@ -44,11 +44,48 @@
 #include "sas.h"
 #include "sas_internal.h"
 
-#if HAVE_ZLIB_H
-// Compression-related function is only available if zlib is.
+#if HAVE_LZ4_H
+// Compression-related function is only available if lz4 is.
+#include "lz4.h"
+
+class SAS::Compressor
+{
+public:
+  static Compressor* get();
+
+  std::string compress(const std::string& s, const Profile* profile = NULL);
+
+private:
+  // The maximum size of input we can process in one go.
+  static const int MAX_INPUT_SIZE = 4096;
+
+  // The default acceleration (1) is sufficient for us and gives best
+  // compression.
+  static const int ACCELERATION = 1;
+
+  static void init();
+  static void destroy(void* compressor_ptr);
+
+  Compressor();
+  ~Compressor();
+
+  // Variables with which to store a compressor on a per-thread basis.
+  static pthread_once_t _once;
+  static pthread_key_t _key;
+
+  LZ4_stream_t* _stream;
+  char _buffer[LZ4_COMPRESSBOUND(MAX_INPUT_SIZE)];
+};
 
 pthread_once_t SAS::Compressor::_once = PTHREAD_ONCE_INIT;
 pthread_key_t SAS::Compressor::_key = {0};
+
+/// Entry-point for doing compression.
+std::string SAS::compress(const std::string& s, const Profile* profile)
+{
+  SAS::Compressor* compressor = Compressor::get();
+  return compressor->compress(s, profile);
+}
 
 /// Statically initialize the Compressor class by creating the thread-local key.
 void SAS::Compressor::init()
@@ -80,68 +117,50 @@ void SAS::Compressor::destroy(void* compressor_ptr)
   delete compressor;
 }
 
-/// Compressor constructor.  Initializes the zlib compressor.
+/// Compressor constructor.  Initializes the lz4 compressor.
 SAS::Compressor::Compressor()
 {
-  _stream.next_in = Z_NULL;
-  _stream.avail_in = 0;
-  _stream.zalloc = Z_NULL;
-  _stream.zfree = Z_NULL;
-  _stream.opaque = Z_NULL;
-  int rc = deflateInit2(&_stream,
-                        Z_DEFAULT_COMPRESSION,
-                        Z_DEFLATED,
-                        WINDOW_BITS,
-                        MEM_LEVEL,
-                        Z_DEFAULT_STRATEGY);
-  if (rc != Z_OK)
+  _stream = LZ4_createStream();
+  if (_stream == NULL)
   {
-    SAS_LOG_WARNING("Failed to initialize SAS parameter compressor (rc=%d)", rc);
+    SAS_LOG_WARNING("Failed to initialize SAS parameter compressor");
   }
 }
 
-/// Compressor destructor.  Terminates the zlib compressor.
+/// Compressor destructor.  Terminates the lz4 compressor.
 SAS::Compressor::~Compressor()
 {
-  deflateEnd(&_stream);
+  // Free the stream.  Ignore the return code - the interface doesn't define
+  // its meaning, and it's currently hard-coded to 0.
+  (void)LZ4_freeStream(_stream); _stream = NULL;
 }
 
 /// Compresses the specified string using the optional profile.
 std::string SAS::Compressor::compress(const std::string& s, const Profile* profile)
 {
-  // If we have a profile, set its dictionary into the zlib compressor.
+  // If we have a profile, set its dictionary into the lz4 compressor.
   if (profile != NULL)
   {
     std::string dictionary = profile->get_dictionary();
-    deflateSetDictionary(&_stream, (const unsigned char*)dictionary.c_str(), dictionary.length());
+    LZ4_loadDict(_stream, dictionary.c_str(), dictionary.length());
   }
 
-  // Initialize the zlib compressor with the input.
-  _stream.next_in = (unsigned char*)s.c_str();
-  _stream.avail_in = s.length();
-
-  // Spin round, compressing up to a buffer's worth of input and appending it to the string.  Z_OK
-  // indicates that we compressed data but still have work to do.  Z_STREAM_END means we've
-  // finished.
+  // Spin round, compressing up to a buffer's worth of input and appending it to the string.
   std::string compressed;
-  int rc = Z_OK;
-  do
+  for (unsigned int s_pos = 0; s_pos < s.length(); s_pos += MAX_INPUT_SIZE)
   {
-    _stream.next_out = (unsigned char*)_buffer;
-    _stream.avail_out = sizeof(_buffer);
-    rc = deflate(&_stream, Z_FINISH);
-    compressed += std::string(_buffer, sizeof(_buffer) - _stream.avail_out);
-  }
-  while (rc == Z_OK);
-
-  // Check we succeeded.
-  if (rc != Z_STREAM_END)
-  {
-    SAS_LOG_WARNING("Failed to compress SAS parameter (rc=%d)", rc);
+    // Because we've allocated a big enough buffer, it's not possible for this call to fail.
+    int buffer_len = LZ4_compress_fast_continue(_stream,
+                                                &s.c_str()[s_pos],
+                                                _buffer,
+                                                (s.length() - s_pos > MAX_INPUT_SIZE) ? MAX_INPUT_SIZE : s.length() - s_pos,
+                                                sizeof(_buffer),
+                                                ACCELERATION);
+    compressed += std::string(_buffer, buffer_len);
   }
 
   // Reset the compressor before we return.
-  deflateReset(&_stream);
+  LZ4_resetStream(_stream);
 
   return compressed;
 }
