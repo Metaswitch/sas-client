@@ -54,10 +54,6 @@
   #error "Atomic types not supported"
 #endif
 
-#if HAVE_ZLIB_H
-  #include <zlib.h>
-#endif
-
 // SAS Client library Version number
 // format x.y.z
 // The SAS Client library uses semantic versioning. This means:
@@ -113,8 +109,8 @@ public:
   typedef uint64_t TrailId;
   typedef uint64_t Timestamp;
 
-#if HAVE_ZLIB_H
-  // Compression-related classes are only available if zlib is
+#if HAVE_LZ4_H
+  // Compression-related classes are only available if lz4 is
   class Profile
   {
   public:
@@ -125,29 +121,8 @@ public:
     const std::string _dictionary;
   };
 
-  class Compressor
-  {
-  public:
-    static Compressor* get();
-
-    std::string compress(const std::string& s, const Profile* profile = NULL);
-
-  private:
-    static void init();
-    static void destroy(void* compressor_ptr);
-
-    Compressor();
-    ~Compressor();
-
-    static const int WINDOW_BITS = 15;
-    static const int MEM_LEVEL = 9;
-    // Variables with which to store a compressor on a per-thread basis.
-    static pthread_once_t _once;
-    static pthread_key_t _key;
-
-    z_stream _stream;
-    char _buffer[4096];
-  };
+  class Compressor;
+  static std::string compress(const std::string& s, const Profile* profile = NULL);
 #endif
 
   class Message
@@ -201,12 +176,11 @@ public:
       return add_var_param(local_str);
     }
 
-#if HAVE_ZLIB_H
+#if HAVE_LZ4_H
     // Compression-related methods are only available if zlib is
     inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
     {
-      Compressor* compressor = Compressor::get();
-      return add_var_param(compressor->compress(s, profile));
+      return add_var_param(SAS::compress(s, profile));
     }
 
     inline Message& add_compressed_param(size_t len, char* s, const Profile* profile = NULL)

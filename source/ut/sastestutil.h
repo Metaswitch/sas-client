@@ -204,7 +204,7 @@ namespace SasTest
       uint16_t static_len;
       parse_network_int16(static_len);
 
-      for (int i = 0; i < (static_len / sizeof(uint32_t)); ++i)
+      for (unsigned int i = 0; i < (static_len / sizeof(uint32_t)); ++i)
       {
         uint32_t val;
         parse_native_int32(val);

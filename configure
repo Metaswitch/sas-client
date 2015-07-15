@@ -98,11 +98,6 @@ do
   fi
 done
 
-# Check zlib and write a suitable warning if not found
-if check_header_file zlib.h
-then
-  write_hash_define zlib.h 1
-else
-  write_hash_define zlib.h 0
-  echo "*** SAS COMPRESSION DISABLED! ***"
-fi
+# We include lz4 as a submodule, so it's always present.  As a result, we can
+# always enable lz4 compression.
+write_hash_define lz4.h 1
