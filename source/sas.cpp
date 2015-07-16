@@ -95,12 +95,18 @@ private:
   // Socket for the connection.
   int _sock;
 
+  static std::atomic_uint_fast64_t _num_writes;
+  static std::atomic_uint_fast64_t _written_bytes;
+
   /// Send timeout for the socket in seconds.
   static const int SEND_TIMEOUT = 5;
 
   /// Maximum depth of SAS message queue.
   static const int MAX_MSG_QUEUE = 1000;
 };
+
+std::atomic_uint_fast64_t SAS::Connection::_num_writes(0);
+std::atomic_uint_fast64_t SAS::Connection::_written_bytes(0);
 
 int SAS::init(const std::string& system_name,
                const std::string& system_type,
@@ -249,6 +255,18 @@ void SAS::Connection::writer()
         {
           // No real messages for a second, so send a heartbeat message
           msg = SAS::heartbeat_msg();
+        }
+        else
+        {
+          // Update statistics and print out status irregularly.
+          std::uint_fast64_t num_writes = (_num_writes++);
+          _written_bytes += msg.length();
+          if ((num_writes % SAS_STATS_PERIOD) == 0)
+          {
+            SAS_LOG_WARNING("%llu writes: %llu bytes",
+                            num_writes,
+                            _written_bytes.load());
+          }
         }
 
         int len = msg.length();

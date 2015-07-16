@@ -66,30 +66,34 @@
 #define SAS_CLIENT_VERSION = "1.0.0"
 
 // Marker IDs
-static const int MARKER_ID_PROTOCOL_ERROR = 0x01000001;
-static const int MARKER_ID_START = 0x01000003;
-static const int MARKER_ID_END = 0x01000004;
-static const int MARKER_ID_DIALED_DIGITS = 0x01000005;
-static const int MARKER_ID_CALLING_DN = 0x01000006;
-static const int MARKER_ID_CALLED_DN = 0x01000007;
-static const int MARKER_ID_MVD_MOVABLE_BLOCK = 0x01000015;
-static const int MARKED_ID_GENERIC_CORRELATOR = 0x01000016;
-static const int MARKED_ID_FLUSH = 0x01000017;
+static const int MARKER_ID_PROTOCOL_ERROR       = 0x01000001;
+static const int MARKER_ID_START                = 0x01000003;
+static const int MARKER_ID_END                  = 0x01000004;
+static const int MARKER_ID_DIALED_DIGITS        = 0x01000005;
+static const int MARKER_ID_CALLING_DN           = 0x01000006;
+static const int MARKER_ID_CALLED_DN            = 0x01000007;
 
-static const int MARKER_ID_SIP_REGISTRATION = 0x010B0004;
-static const int MARKER_ID_SIP_ALL_REGISTER = 0x010B0005;
+// Sometimes referred to as "subscriber number"
+static const int MARKER_ID_PRIMARY_DEVICE       = 0x01000008;
+
+static const int MARKER_ID_MVD_MOVABLE_BLOCK    = 0x01000015;
+static const int MARKED_ID_GENERIC_CORRELATOR   = 0x01000016;
+static const int MARKED_ID_FLUSH                = 0x01000017;
+
+static const int MARKER_ID_SIP_REGISTRATION     = 0x010B0004;
+static const int MARKER_ID_SIP_ALL_REGISTER     = 0x010B0005;
 static const int MARKER_ID_SIP_SUBSCRIBE_NOTIFY = 0x010B0006;
-static const int MARKER_ID_SIP_CALL_ID = 0x010C0001;
-static const int MARKER_ID_IMS_CHARGING_ID = 0x010C0002;
-static const int MARKER_ID_VIA_BRANCH_PARAM = 0x010C0003;
+static const int MARKER_ID_SIP_CALL_ID          = 0x010C0001;
+static const int MARKER_ID_IMS_CHARGING_ID      = 0x010C0002;
+static const int MARKER_ID_VIA_BRANCH_PARAM     = 0x010C0003;
 
 static const int MARKER_ID_OUTBOUND_CALLING_URI = 0x05000003;
-static const int MARKER_ID_INBOUND_CALLING_URI = 0x05000004;
-static const int MARKER_ID_OUTBOUND_CALLED_URI = 0x05000005;
-static const int MARKER_ID_INBOUND_CALLED_URI = 0x05000006;
+static const int MARKER_ID_INBOUND_CALLING_URI  = 0x05000004;
+static const int MARKER_ID_OUTBOUND_CALLED_URI  = 0x05000005;
+static const int MARKER_ID_INBOUND_CALLED_URI   = 0x05000006;
 
 // SAS::init return codes
-static const int SAS_INIT_RC_OK = 0;
+static const int SAS_INIT_RC_OK  = 0;
 static const int SAS_INIT_RC_ERR = 1;
 
 class SAS
@@ -122,7 +126,7 @@ public:
 
     inline Message(TrailId trail,
                    uint32_t id,
-                   uint32_t instance) :
+                   uint32_t instance=0u) :
       _trail(trail),
       _id(id),
       _instance(instance),
@@ -214,7 +218,7 @@ public:
     //   - The top nibble, which is reserved for future use and must be set to
     //     0x0.
     //   - the bottom nibble, which SAS requires be set to the value 0xF.
-    inline Event(TrailId trail, uint32_t event, uint32_t instance) :
+    inline Event(TrailId trail, uint32_t event, uint32_t instance=0u) :
       Message(trail,
               ((event & 0x00FFFFFF) | 0x0F000000),
               instance),
@@ -242,7 +246,7 @@ public:
   class Marker : public Message
   {
   public:
-    inline Marker(TrailId trail, uint32_t marker, uint32_t instance) :
+    inline Marker(TrailId trail, uint32_t marker, uint32_t instance=0u) :
       Message(trail, marker, instance)
     {
     }
@@ -294,7 +298,7 @@ public:
                    const std::string& sas_address,
                    sas_log_callback_t* log_callback);
   static void term();
-  static TrailId new_trail(uint32_t instance);
+  static TrailId new_trail(uint32_t instance=0u);
   static void report_event(const Event& event);
   static void report_marker(const Marker& marker,
                             Marker::Scope scope = Marker::Scope::None,
@@ -325,6 +329,78 @@ private:
   class Connection;
   static Connection* _connection;
   static sas_log_callback_t* _log_callback;
+
+  /// Measures time delay in microseconds
+  class StopWatch
+  {
+  public:
+    inline StopWatch() : _ok(true), _running(true), _elapsed_us(0) {}
+
+    /// Starts the stop-watch, returning whether it was successful.  It's OK
+    /// to ignore the return code - it will also be returned on read() and
+    /// stop().
+    inline bool start()
+    {
+      _ok = (clock_gettime(CLOCK_MONOTONIC, &_start) == 0);
+
+      if (_ok)
+      {
+        _running = true;
+      }
+
+      return _ok;
+    }
+
+    /// Stops the stop-watch, returning whether it was successful.  The recorded
+    /// time is stored internal and can be read by a subsequent call to read().
+    /// It's OK to ignore the return code to stop() - it will also be returned
+    /// on read().
+    inline bool stop()
+    {
+      if (_running)
+      {
+        _ok = read(_elapsed_us);
+        _running = false;
+      }
+
+      return _ok;
+    }
+
+    /// Reads the stopwatch (which does not have to be stopped) and returns
+    /// whether this was successful. result_us is not valid on failure.
+    inline bool read(unsigned long& result_us)
+    {
+      if (!_ok)
+      {
+        return _ok;
+      }
+
+      if (_running)
+      {
+        struct timespec now;
+        _ok = (clock_gettime(CLOCK_MONOTONIC, &now) == 0);
+
+        if (_ok)
+        {
+          result_us = (now.tv_nsec - _start.tv_nsec) / 1000L +
+                      (now.tv_sec - _start.tv_sec) * 1000000L;
+        }
+      }
+      else
+      {
+        result_us = _elapsed_us;
+      }
+
+      return _ok;
+    }
+
+  private:
+    struct timespec _start;
+    bool _ok;
+    bool _running;
+    unsigned long _elapsed_us;
+  };
+
 };
 
 #endif

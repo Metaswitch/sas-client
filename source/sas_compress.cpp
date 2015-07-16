@@ -73,12 +73,21 @@ private:
   static pthread_once_t _once;
   static pthread_key_t _key;
 
+  static std::atomic_uint_fast64_t _num_compression_ops;
+  static std::atomic_uint_fast64_t _uncompressed_bytes;
+  static std::atomic_uint_fast64_t _compressed_bytes;
+  static std::atomic_uint_fast64_t _elapsed_time_us;
+
   LZ4_stream_t* _stream;
   char _buffer[LZ4_COMPRESSBOUND(MAX_INPUT_SIZE)];
 };
 
 pthread_once_t SAS::Compressor::_once = PTHREAD_ONCE_INIT;
 pthread_key_t SAS::Compressor::_key = {0};
+std::atomic_uint_fast64_t SAS::Compressor::_num_compression_ops(0);
+std::atomic_uint_fast64_t SAS::Compressor::_uncompressed_bytes(0);
+std::atomic_uint_fast64_t SAS::Compressor::_compressed_bytes(0);
+std::atomic_uint_fast64_t SAS::Compressor::_elapsed_time_us(0);
 
 /// Entry-point for doing compression.
 std::string SAS::compress(const std::string& s, const Profile* profile)
@@ -138,6 +147,10 @@ SAS::Compressor::~Compressor()
 /// Compresses the specified string using the optional profile.
 std::string SAS::Compressor::compress(const std::string& s, const Profile* profile)
 {
+  // Start a timer.
+  SAS::StopWatch stop_watch;
+  stop_watch.start();
+
   // If we have a profile, set its dictionary into the lz4 compressor.
   if (profile != NULL)
   {
@@ -161,6 +174,25 @@ std::string SAS::Compressor::compress(const std::string& s, const Profile* profi
 
   // Reset the compressor before we return.
   LZ4_resetStream(_stream);
+
+  // Stop the timer and read its value.
+  (void)stop_watch.stop();
+  unsigned long elapsed_us = 0;
+  (void)stop_watch.read(elapsed_us);
+
+  // Update statistics and print out status irregularly.
+  std::uint_fast64_t num_ops = (_num_compression_ops++);
+  _uncompressed_bytes += s.length();
+  _compressed_bytes += compressed.length();
+  _elapsed_time_us += elapsed_us;
+  if ((num_ops % SAS_STATS_PERIOD) == 0)
+  {
+    SAS_LOG_WARNING("%llu SAS compression ops: %llu => %llu in %llu us",
+                    num_ops,
+                    _uncompressed_bytes.load(),
+                    _compressed_bytes.load(),
+                    _elapsed_time_us.load());
+  }
 
   return compressed;
 }
