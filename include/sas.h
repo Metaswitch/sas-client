@@ -54,6 +54,15 @@
   #error "Atomic types not supported"
 #endif
 
+#define SAS_LOG_ERROR(...) SAS_LOG(SAS::LOG_LEVEL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_WARNING(...) SAS_LOG(SAS::LOG_LEVEL_WARNING, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_STATUS(...) SAS_LOG(SAS::LOG_LEVEL_STATUS, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_INFO(...) SAS_LOG(SAS::LOG_LEVEL_INFO, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_VERBOSE(...) SAS_LOG(SAS::LOG_LEVEL_VERBOSE, __FILE__, __LINE__, __VA_ARGS__)
+#define SAS_LOG_DEBUG(...) SAS_LOG(SAS::LOG_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
+
+#define SAS_LOG(...) _log_callback(__VA_ARGS__)
+
 // SAS Client library Version number
 // format x.y.z
 // The SAS Client library uses semantic versioning. This means:
@@ -133,6 +142,7 @@ public:
       _static_params(),
       _var_params()
     {
+      SAS_LOG_ERROR("SAS::Message(%lu);", id);
     }
 
     virtual ~Message()
@@ -141,12 +151,14 @@ public:
 
     inline Message& add_static_param(uint32_t param)
     {
+      SAS_LOG_ERROR("SAS::Message::add_var_param(%lu);", param);
       _static_params.push_back(param);
       return *this;
     }
 
     inline Message& add_var_param(const std::string& s)
     {
+      SAS_LOG_ERROR("SAS::Message::add_var_param(\"%.*s\");", s.length(), s.c_str());
       _var_params.push_back(s);
       return *this;
     }
@@ -173,7 +185,17 @@ public:
     // Compression-related methods are only available if zlib is
     inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
     {
-      return add_var_param(SAS::compress(s, profile));
+      if (profile != NULL)
+      {
+        SAS_LOG_ERROR("SAS::Message::add_compressed_param(\"%.*s\",", s.length(), s.c_str());
+        SAS_LOG_ERROR("                                   \"%.*s\");", profile->get_dictionary().length(), profile->get_dictionary().c_str());
+      }
+      else
+      {
+        SAS_LOG_ERROR("SAS::Message::add_compressed_param(\"%.*s\");", s.length(), s.c_str());
+      }
+      _var_params.push_back(SAS::compress(s, profile));
+      return *this;
     }
 
     inline Message& add_compressed_param(size_t len, char* s, const Profile* profile = NULL)
