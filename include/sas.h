@@ -304,6 +304,10 @@ public:
                                     const char *fmt,
                                     ...);
 
+  typedef int (socket_factory_t)(const char* hostname,
+                                 const char* port);
+
+
   // A simple implementation of sas_log_callback_t that logs messages to stdout.
   static void log_to_stdout(log_level_t level,
                             const char *module,
@@ -322,7 +326,8 @@ public:
                    const std::string& system_type,
                    const std::string& resource_identifier,
                    const std::string& sas_address,
-                   sas_log_callback_t* log_callback);
+                   sas_log_callback_t* log_callback,
+                   socket_factory_t* socket_factory = NULL);
   static void term();
   static TrailId new_trail(uint32_t instance=0u);
   static void report_event(const Event& event);
@@ -355,6 +360,7 @@ private:
   class Connection;
   static Connection* _connection;
   static sas_log_callback_t* _log_callback;
+  static socket_factory_t* _socket_factory;
 };
 
 #endif

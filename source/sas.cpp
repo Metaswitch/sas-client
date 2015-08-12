@@ -59,6 +59,7 @@ const uint8_t ASSOC_OP_NO_REACTIVATE = 0x02;
 std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
 SAS::Connection* SAS::_connection = NULL;
 SAS::sas_log_callback_t* SAS::_log_callback = NULL;
+SAS::socket_factory_t* SAS::_socket_factory = NULL;
 
 class SAS::Connection
 {
@@ -75,6 +76,7 @@ public:
 
 private:
   bool connect_init();
+  int get_local_sock();
   void writer();
 
   std::string _system_name;
@@ -101,7 +103,8 @@ int SAS::init(const std::string& system_name,
                const std::string& system_type,
                const std::string& resource_identifier,
                const std::string& sas_address,
-               sas_log_callback_t* log_callback)
+               sas_log_callback_t* log_callback,
+               socket_factory_t* socket_factory)
 {
   _log_callback = log_callback;
 
@@ -238,7 +241,7 @@ void SAS::Connection::writer()
       _connected = true;
       // Now can start dequeuing and sending data.
       std::string msg;
-      while ((_sock != -1) && _msg_q.pop(msg, 1000))
+      while ((_sock > 0) && _msg_q.pop(msg, 1000))
       {
         if (msg.empty())
         {
@@ -311,8 +314,7 @@ void SAS::Connection::writer()
   }
 }
 
-
-bool SAS::Connection::connect_init()
+int SAS::Connection::get_local_sock()
 {
   int rc;
   struct addrinfo hints, *addrs;
@@ -329,7 +331,7 @@ bool SAS::Connection::connect_init()
   {
     SAS_LOG_ERROR("Failed to get addresses for SAS %s:%s : %d %s",
                      _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
-    return false;
+    return -1;
   }
 
   // Set a maximum send timeout on the socket so we don't wait forever if the
@@ -382,11 +384,33 @@ bool SAS::Connection::connect_init()
   if (rc != 0)
   {
     SAS_LOG_ERROR("Failed to connect to SAS %s:%s : %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
-    return false;
+    return -1;
   }
 
   freeaddrinfo(addrs);
 
+  return _sock;
+}
+
+
+bool SAS::Connection::connect_init()
+{
+  int _sock;
+
+  if (_socket_factory)
+  {
+    _sock = _socket_factory(_sas_address.c_str(), SAS_PORT);
+  }
+  else
+  {
+    _sock = get_local_sock();
+  }
+
+  if (_sock < 0)
+  {
+    return false;
+  }
+ 
   SAS_LOG_DEBUG("Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
 
   // Send an init message to SAS.
@@ -421,7 +445,7 @@ bool SAS::Connection::connect_init()
 
   SAS_LOG_DEBUG("Sending SAS INIT message");
 
-  rc = ::send(_sock, init.data(), init.length(), 0);
+  int rc = ::send(_sock, init.data(), init.length(), 0);
   if (rc < 0)
   {
     SAS_LOG_ERROR("SAS connection to %s:%s failed: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
