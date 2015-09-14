@@ -100,6 +100,13 @@ static const int MARKER_ID_INBOUND_CALLED_URI   = 0x05000006;
 static const int SAS_INIT_RC_OK  = 0;
 static const int SAS_INIT_RC_ERR = 1;
 
+// Uniqueness scopes
+enum struct UniquenessScopes
+{
+  DIAMETER_SID_RFC6733 = 1,
+  UUID_RFC4122 = 2
+};
+
 class SAS
 {
 public:
