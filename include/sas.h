@@ -311,8 +311,11 @@ public:
                                     const char *fmt,
                                     ...);
 
-  typedef int (socket_factory_t)(const char* hostname,
-                                 const char* port);
+  // This callback creates the SAS connection socket. It exists primarily so that we can plug in a
+  // cross-namespace socket factory, and create SAS connections in the management namespace rather
+  // than the signaling one,
+  typedef int (create_socket_callback_t)(const char* hostname,
+                                         const char* port);
 
 
   // A simple implementation of sas_log_callback_t that logs messages to stdout.
@@ -330,11 +333,11 @@ public:
                            ...);
 
   static int init(const std::string& system_name,
-                   const std::string& system_type,
-                   const std::string& resource_identifier,
-                   const std::string& sas_address,
-                   sas_log_callback_t* log_callback,
-                   socket_factory_t* socket_factory = NULL);
+                  const std::string& system_type,
+                  const std::string& resource_identifier,
+                  const std::string& sas_address,
+                  sas_log_callback_t* log_callback,
+                  create_socket_callback_t* socket_callback = NULL);
   static void term();
   static TrailId new_trail(uint32_t instance=0u);
   static void report_event(const Event& event);
@@ -367,7 +370,7 @@ private:
   class Connection;
   static Connection* _connection;
   static sas_log_callback_t* _log_callback;
-  static socket_factory_t* _socket_factory;
+  static create_socket_callback_t* _socket_callback;
 };
 
 #endif
