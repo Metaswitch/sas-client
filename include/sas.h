@@ -311,9 +311,14 @@ public:
                                     const char *fmt,
                                     ...);
 
-  // This callback creates the SAS connection socket. It exists primarily so that we can plug in a
-  // cross-namespace socket factory, and create SAS connections in the management namespace rather
-  // than the signaling one,
+  // Optional callback, to create the SAS connection socket in some other way than the 'socket' call.
+  //
+  // For example, this allows callers to use socket control messages
+  // (http://man7.org/linux/man-pages/man3/cmsg.3.html) to get a network socket with enhanced
+  // privileges.
+  //
+  // If this callback isn't provided to SAS::init, we'll use SAS::Connection::get_local_sock by
+  // default.
   typedef int (create_socket_callback_t)(const char* hostname,
                                          const char* port);
 
