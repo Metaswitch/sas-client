@@ -311,6 +311,18 @@ public:
                                     const char *fmt,
                                     ...);
 
+  // Optional callback, to create the SAS connection socket in some other way than the 'socket' call.
+  //
+  // For example, this allows callers to use socket control messages
+  // (http://man7.org/linux/man-pages/man3/cmsg.3.html) to get a network socket with enhanced
+  // privileges.
+  //
+  // If this callback isn't provided to SAS::init, we'll use SAS::Connection::get_local_sock by
+  // default.
+  typedef int (create_socket_callback_t)(const char* hostname,
+                                         const char* port);
+
+
   // A simple implementation of sas_log_callback_t that logs messages to stdout.
   static void log_to_stdout(log_level_t level,
                             const char *module,
@@ -326,10 +338,11 @@ public:
                            ...);
 
   static int init(const std::string& system_name,
-                   const std::string& system_type,
-                   const std::string& resource_identifier,
-                   const std::string& sas_address,
-                   sas_log_callback_t* log_callback);
+                  const std::string& system_type,
+                  const std::string& resource_identifier,
+                  const std::string& sas_address,
+                  sas_log_callback_t* log_callback,
+                  create_socket_callback_t* socket_callback = NULL);
   static void term();
   static TrailId new_trail(uint32_t instance=0u);
   static void report_event(const Event& event);
@@ -362,6 +375,7 @@ private:
   class Connection;
   static Connection* _connection;
   static sas_log_callback_t* _log_callback;
+  static create_socket_callback_t* _socket_callback;
 };
 
 #endif
