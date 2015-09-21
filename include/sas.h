@@ -205,8 +205,9 @@ public:
     // Compression-related methods are only available if zlib is
     inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
     {
-      Compressor* compressor = Compressor::get();
-      return add_var_param(compressor->compress(s, profile));
+      //Compressor* compressor = Compressor::get();
+      //return add_var_param(compressor->compress(s, profile));
+      return add_var_param(s);
     }
 
     inline Message& add_compressed_param(size_t len, char* s, const Profile* profile = NULL)
@@ -355,7 +356,7 @@ private:
   static void write_data(std::string& s, size_t length, const char* data);
   static void write_timestamp(std::string& s);
   static void write_trail(std::string& s, TrailId trail);
-  
+
   static std::string heartbeat_msg();
 
   static std::atomic<TrailId> _next_trail_id;
