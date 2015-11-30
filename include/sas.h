@@ -76,6 +76,7 @@ static const int MARKER_ID_END                  = 0x01000004;
 static const int MARKER_ID_DIALED_DIGITS        = 0x01000005;
 static const int MARKER_ID_CALLING_DN           = 0x01000006;
 static const int MARKER_ID_CALLED_DN            = 0x01000007;
+static const int MARKER_ID_ICC_BRANCH_INDEX     = 0x01000010;
 
 // Sometimes referred to as "subscriber number"
 static const int MARKER_ID_PRIMARY_DEVICE       = 0x01000008;
