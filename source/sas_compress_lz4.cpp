@@ -80,11 +80,19 @@ void SAS::LZ4Compressor::destroy(void* compressor_ptr)
 /// Compressor constructor.  Initializes the LZ4 compressor.
 SAS::LZ4Compressor::LZ4Compressor()
 {
+  _stream = LZ4_createStream();
+  if (_stream == NULL)
+  {
+    SAS_LOG_WARNING("Failed to initialize SAS parameter compressor");
+  }
 }
 
 /// Compressor destructor.  Terminates the LZ4 compressor.
 SAS::LZ4Compressor::~LZ4Compressor()
 {
+  // Free the stream.  Ignore the return code - the interface doesn't define
+  // its meaning, and it's currently hard-coded to 0.
+  (void)LZ4_freeStream(_stream); _stream = NULL;
 }
 
 /// Compresses the specified string using the optional profile.
@@ -92,8 +100,25 @@ std::string SAS::LZ4Compressor::compress(const std::string& s, std::string dicti
 {
   if (!dictionary.empty())
   {
+    LZ4_loadDict(_stream, dictionary.c_str(), dictionary.length());
   }
 
-  std::string compressed = "";
+  // Spin round, compressing up to a buffer's worth of input and appending it to the string.
+  std::string compressed;
+  for (unsigned int s_pos = 0; s_pos < s.length(); s_pos += MAX_INPUT_SIZE)
+  {
+    // Because we've allocated a big enough buffer, it's not possible for this call to fail.
+    int buffer_len = LZ4_compress_fast_continue(_stream,
+                                                &s.c_str()[s_pos],
+                                                _buffer,
+                                                (s.length() - s_pos > MAX_INPUT_SIZE) ? MAX_INPUT_SIZE : s.length() - s_pos,
+                                                sizeof(_buffer),
+                                                ACCELERATION);
+    compressed += std::string(_buffer, buffer_len);
+  }
+
+  // Reset the compressor before we return.
+  LZ4_resetStream(_stream);
+
   return compressed;
 }

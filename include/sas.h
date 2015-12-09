@@ -173,6 +173,13 @@ public:
     std::string compress(const std::string& s, std::string dictionary);
 
   private:
+    // The maximum size of input we can process in one go.
+    static const int MAX_INPUT_SIZE = 4096;
+
+    // The default acceleration (1) is sufficient for us and gives best
+    // compression.
+    static const int ACCELERATION = 1;
+
     static void init();
     static void destroy(void* compressor_ptr);
 
@@ -182,6 +189,9 @@ public:
     // Variables with which to store a compressor on a per-thread basis.
     static pthread_once_t _once;
     static pthread_key_t _key;
+
+    LZ4_stream_t* _stream;
+    char _buffer[LZ4_COMPRESSBOUND(MAX_INPUT_SIZE)];
   };
 
   class Message
