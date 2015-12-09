@@ -46,16 +46,14 @@
 #include <string>
 #include <vector>
 
+#include <zlib.h>
+
 #if HAVE_ATOMIC
   #include <atomic>
 #elif HAVE_CSTDATOMIC
   #include <cstdatomic>
 #else
   #error "Atomic types not supported"
-#endif
-
-#if HAVE_ZLIB_H
-  #include <zlib.h>
 #endif
 
 // SAS Client library Version number
@@ -114,8 +112,7 @@ public:
   typedef uint64_t TrailId;
   typedef uint64_t Timestamp;
 
-#if HAVE_ZLIB_H
-  // Compression-related classes are only available if zlib is
+  // Compression profile
   class Profile
   {
   public:
@@ -149,7 +146,6 @@ public:
     z_stream _stream;
     char _buffer[4096];
   };
-#endif
 
   class Message
   {
@@ -202,7 +198,6 @@ public:
       return add_var_param(local_str);
     }
 
-#if HAVE_ZLIB_H
     // Compression-related methods are only available if zlib is
     inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
     {
@@ -227,7 +222,6 @@ public:
       std::string local_str(s);
       return add_compressed_param(local_str, profile);
     }
-#endif
 
     friend class SAS;
 

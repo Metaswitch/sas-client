@@ -44,9 +44,6 @@
 #include "sas.h"
 #include "sas_internal.h"
 
-#if HAVE_ZLIB_H
-// Compression-related function is only available if zlib is.
-
 pthread_once_t SAS::Compressor::_once = PTHREAD_ONCE_INIT;
 pthread_key_t SAS::Compressor::_key = {0};
 
@@ -145,4 +142,3 @@ std::string SAS::Compressor::compress(const std::string& s, const Profile* profi
 
   return compressed;
 }
-#endif
