@@ -164,6 +164,24 @@ public:
     char _buffer[4096];
   };
 
+  class LZ4Compressor : public Compressor
+  {
+  public:
+    static Compressor* get();
+
+    std::string compress(const std::string& s, std::string dictionary);
+
+  private:
+    static void init();
+    static void destroy(void* compressor_ptr);
+
+    LZ4Compressor();
+    ~LZ4Compressor();
+    
+    // Variables with which to store a compressor on a per-thread basis.
+    static pthread_once_t _once;
+    static pthread_key_t _key;
+  };
 
   class Message
   {
@@ -219,7 +237,15 @@ public:
     // Compression-related methods are only available if zlib is
     inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
     {
-      Compressor* compressor = ZlibCompressor::get();
+      Compressor* compressor;
+      if ((profile != NULL) && profile->is_lz4())
+      {
+        compressor = LZ4Compressor::get();
+      }
+      else
+      {
+        ZlibCompressor::get();
+      }
       std::string dictionary = (profile != NULL) ? profile->get_dictionary() : "";
       return add_var_param(compressor->compress(s, dictionary));
     }

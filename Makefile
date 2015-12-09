@@ -9,8 +9,8 @@ libsas.a: sas.o sas_compress.o
 
 sas.o: source/sas.cpp source/sas_eventq.h source/sas_internal.h include/sas.h include/config.h
 	g++ -Iinclude -std=c++0x -c source/sas.cpp -Wall -Werror -ggdb3
-sas_compress.o: source/sas_compress.cpp source/sas_eventq.h source/sas_internal.h include/sas.h include/config.h
-	g++ -Iinclude -std=c++0x -c source/sas_compress.cpp -Wall -Werror -ggdb3
+sas_compress.o: source/sas_compress.cpp source/sas_compress_lz4.cpp source/sas_eventq.h source/sas_internal.h include/sas.h include/config.h
+	g++ -Iinclude -std=c++0x -c source/sas_compress.cpp source/sas_compress_lz4.cpp -Wall -Werror -ggdb3
 
 include/config.h: configure
 	./configure
