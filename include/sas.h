@@ -47,6 +47,7 @@
 #include <vector>
 
 #include <zlib.h>
+#include <lz4.h>
 
 #if HAVE_ATOMIC
   #include <atomic>
