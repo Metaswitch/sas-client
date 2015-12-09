@@ -116,11 +116,18 @@ public:
   class Profile
   {
   public:
-    inline Profile(std::string dictionary) : _dictionary(dictionary) {}
+    enum CompressionType {
+      ZLIB = 0,
+      LZ4
+    };
+
+    inline Profile(std::string dictionary, CompressionType t = ZLIB) : _dictionary(dictionary), _type(t) {}
     inline const std::string& get_dictionary() const {return _dictionary;}
+    inline bool is_lz4() const {return _type == LZ4;}
 
   private:
     const std::string _dictionary;
+    const CompressionType _type;
   };
 
   class Compressor
