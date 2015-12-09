@@ -44,11 +44,11 @@
 #include "sas.h"
 #include "sas_internal.h"
 
-pthread_once_t SAS::Compressor::_once = PTHREAD_ONCE_INIT;
-pthread_key_t SAS::Compressor::_key = {0};
+pthread_once_t SAS::ZlibCompressor::_once = PTHREAD_ONCE_INIT;
+pthread_key_t SAS::ZlibCompressor::_key = {0};
 
 /// Statically initialize the Compressor class by creating the thread-local key.
-void SAS::Compressor::init()
+void SAS::ZlibCompressor::init()
 {
   int rc = pthread_key_create(&_key, destroy);
   if (rc != 0)
@@ -58,27 +58,27 @@ void SAS::Compressor::init()
 }
 
 /// Get a thread-scope Compressor, or create one if it doesn't exist already.
-SAS::Compressor* SAS::Compressor::get()
+SAS::Compressor* SAS::ZlibCompressor::get()
 {
   (void)pthread_once(&_once, init);
   Compressor* compressor = (Compressor*)pthread_getspecific(_key);
   if (compressor == NULL)
   {
-    compressor = new Compressor();
+    compressor = new ZlibCompressor();
     pthread_setspecific(_key, compressor);
   }
   return compressor;
 }
 
 /// Destroy a Compressor.  (Called by pthread when a thread terminates.)
-void SAS::Compressor::destroy(void* compressor_ptr)
+void SAS::ZlibCompressor::destroy(void* compressor_ptr)
 {
-  Compressor* compressor = (Compressor*)compressor_ptr;
+  ZlibCompressor* compressor = (ZlibCompressor*)compressor_ptr;
   delete compressor;
 }
 
 /// Compressor constructor.  Initializes the zlib compressor.
-SAS::Compressor::Compressor()
+SAS::ZlibCompressor::ZlibCompressor()
 {
   _stream.next_in = Z_NULL;
   _stream.avail_in = 0;
@@ -98,18 +98,16 @@ SAS::Compressor::Compressor()
 }
 
 /// Compressor destructor.  Terminates the zlib compressor.
-SAS::Compressor::~Compressor()
+SAS::ZlibCompressor::~ZlibCompressor()
 {
   deflateEnd(&_stream);
 }
 
 /// Compresses the specified string using the optional profile.
-std::string SAS::Compressor::compress(const std::string& s, const Profile* profile)
+std::string SAS::ZlibCompressor::compress(const std::string& s, std::string dictionary)
 {
-  // If we have a profile, set its dictionary into the zlib compressor.
-  if (profile != NULL)
+  if (!dictionary.empty())
   {
-    std::string dictionary = profile->get_dictionary();
     deflateSetDictionary(&_stream, (const unsigned char*)dictionary.c_str(), dictionary.length());
   }
 

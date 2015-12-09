@@ -133,16 +133,26 @@ public:
   class Compressor
   {
   public:
+    virtual std::string compress(const std::string& s, std::string dictionary);
+
+  protected:
+    Compressor();
+    virtual ~Compressor();
+  };
+
+  class ZlibCompressor : public Compressor
+  {
+  public:
     static Compressor* get();
 
-    std::string compress(const std::string& s, const Profile* profile = NULL);
+    std::string compress(const std::string& s, std::string dictionary);
 
   private:
     static void init();
     static void destroy(void* compressor_ptr);
 
-    Compressor();
-    ~Compressor();
+    ZlibCompressor();
+    ~ZlibCompressor();
 
     static const int WINDOW_BITS = 15;
     static const int MEM_LEVEL = 9;
@@ -153,6 +163,7 @@ public:
     z_stream _stream;
     char _buffer[4096];
   };
+
 
   class Message
   {
@@ -208,8 +219,9 @@ public:
     // Compression-related methods are only available if zlib is
     inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
     {
-      Compressor* compressor = Compressor::get();
-      return add_var_param(compressor->compress(s, profile));
+      Compressor* compressor = ZlibCompressor::get();
+      std::string dictionary = (profile != NULL) ? profile->get_dictionary() : "";
+      return add_var_param(compressor->compress(s, dictionary));
     }
 
     inline Message& add_compressed_param(size_t len, char* s, const Profile* profile = NULL)
