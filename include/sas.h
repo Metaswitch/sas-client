@@ -114,41 +114,31 @@ public:
   class Profile
   {
   public:
-    enum CompressionType {
+    enum Algorithm {
       ZLIB = 0,
       LZ4
     };
 
-    inline Profile(std::string dictionary, CompressionType t = ZLIB) : _dictionary(dictionary), _type(t) {}
-    inline Profile(CompressionType t) : _dictionary(""), _type(t) {}
+    inline Profile(std::string dictionary, Algorithm a = ZLIB) : _dictionary(dictionary), _algorithm(a) {}
+    inline Profile(Algorithm a) : _dictionary(""), _algorithm(a) {}
     inline const std::string& get_dictionary() const {return _dictionary;}
-    inline bool is_lz4() const {return _type == LZ4;}
+    inline Algorithm get_algorithm() const {return _algorithm;}
 
   private:
     const std::string _dictionary;
-    const CompressionType _type;
+    const Algorithm _algorithm;
   };
 
   class Compressor
   {
   public:
     virtual std::string compress(const std::string& s, std::string dictionary) = 0;
-    static Compressor* get(const Profile* profile);
+    static Compressor* get(Profile::Algorithm algorithm);
 
   protected:
     Compressor() {};
     virtual ~Compressor() {};
-  
-  private:
-    static void init();
     static void destroy(void* compressor_ptr);
-    
-    static Compressor* get_zlib();
-    static Compressor* get_lz4();
-    // Variables with which to store a compressor on a per-thread basis.
-    static pthread_once_t _once;
-    static pthread_key_t _zlib_key;
-    static pthread_key_t _lz4_key;
   };
 
   class Message
@@ -202,11 +192,20 @@ public:
       return add_var_param(local_str);
     }
 
-    // Compression-related methods are only available if zlib is
     inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
     {
-      Compressor* compressor = SAS::Compressor::get(profile);
-      std::string dictionary = (profile != NULL) ? profile->get_dictionary() : "";
+      // Default compression is zlib with no dictionary
+      Profile::Algorithm algorithm = Profile::Algorithm::ZLIB;
+      std::string dictionary = "";
+
+      // If a profile is provided, override those defaults
+      if (profile != NULL)
+      {
+        algorithm = profile->get_algorithm();
+        dictionary = profile->get_dictionary();
+      }
+
+      Compressor* compressor = SAS::Compressor::get(algorithm);
       return add_var_param(compressor->compress(s, dictionary));
     }
 

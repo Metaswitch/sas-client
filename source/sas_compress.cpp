@@ -54,9 +54,13 @@ public:
   ~ZlibCompressor();
   std::string compress(const std::string& s, std::string dictionary);
 
+  static SAS::Compressor* get();
+
 private:
   static const int WINDOW_BITS = 15;
   static const int MEM_LEVEL = 9;
+
+  static void init();
   // Variables with which to store a compressor on a per-thread basis.
   static pthread_once_t _once;
   static pthread_key_t _key;
@@ -73,6 +77,8 @@ public:
 
   std::string compress(const std::string& s, std::string dictionary);
 
+  static SAS::Compressor* get();
+
 private:
   // The maximum size of input we can process in one go.
   static const int MAX_INPUT_SIZE = 4096;
@@ -81,24 +87,34 @@ private:
   // compression.
   static const int ACCELERATION = 1;
 
+  static void init();
+  // Variables with which to store a compressor on a per-thread basis.
+  static pthread_once_t _once;
+  static pthread_key_t _key;
+
   LZ4_stream_t* _stream;
   char _buffer[LZ4_COMPRESSBOUND(MAX_INPUT_SIZE)];
 };
 
-pthread_once_t SAS::Compressor::_once = PTHREAD_ONCE_INIT;
-pthread_key_t SAS::Compressor::_zlib_key = {0};
-pthread_key_t SAS::Compressor::_lz4_key = {0};
+pthread_once_t ZlibCompressor::_once = PTHREAD_ONCE_INIT;
+pthread_key_t ZlibCompressor::_key = {0};
+pthread_once_t LZ4Compressor::_once = PTHREAD_ONCE_INIT;
+pthread_key_t LZ4Compressor::_key = {0};
 
 /// Statically initialize the Compressor class by creating the thread-local key.
-void SAS::Compressor::init()
+void ZlibCompressor::init()
 {
-  int rc = pthread_key_create(&_zlib_key, destroy);
+  int rc = pthread_key_create(&_key, SAS::Compressor::destroy);
   if (rc != 0)
   {
     SAS_LOG_WARNING("Failed to create key for SAS parameter compressor");
   }
-  
-  rc = pthread_key_create(&_lz4_key, destroy);
+}
+
+/// Statically initialize the Compressor class by creating the thread-local key.
+void LZ4Compressor::init()
+{
+  int rc = pthread_key_create(&_key, SAS::Compressor::destroy);
   if (rc != 0)
   {
     SAS_LOG_WARNING("Failed to create key for SAS parameter compressor");
@@ -106,39 +122,40 @@ void SAS::Compressor::init()
 }
 
 /// Get a thread-scope Compressor, or create one if it doesn't exist already.
-SAS::Compressor* SAS::Compressor::get(const Profile* profile)
+SAS::Compressor* SAS::Compressor::get(SAS::Profile::Algorithm algorithm)
 {
-  (void)pthread_once(&_once, init);
-  if ((profile != NULL) && profile->is_lz4())
+  if (algorithm == SAS::Profile::Algorithm::LZ4)
   {
-    return SAS::Compressor::get_lz4();
+    return LZ4Compressor::get();
   }
   else
   {
-    return SAS::Compressor::get_zlib();
+    return ZlibCompressor::get();
   }
 }
 
 /// Get a thread-scope Compressor, or create one if it doesn't exist already.
-SAS::Compressor* SAS::Compressor::get_zlib()
+SAS::Compressor* ZlibCompressor::get()
 {
-  Compressor* compressor = (Compressor*)pthread_getspecific(_zlib_key);
+  (void)pthread_once(&_once, init);
+  Compressor* compressor = (Compressor*)pthread_getspecific(_key);
   if (compressor == NULL)
   {
     compressor = new ZlibCompressor();
-    pthread_setspecific(_zlib_key, compressor);
+    pthread_setspecific(_key, compressor);
   }
   return compressor;
 }
 
 /// Get a thread-scope Compressor, or create one if it doesn't exist already.
-SAS::Compressor* SAS::Compressor::get_lz4()
+SAS::Compressor* LZ4Compressor::get()
 {
-  Compressor* compressor = (Compressor*)pthread_getspecific(_lz4_key);
+  (void)pthread_once(&_once, init);
+  Compressor* compressor = (Compressor*)pthread_getspecific(_key);
   if (compressor == NULL)
   {
     compressor = new LZ4Compressor();
-    pthread_setspecific(_lz4_key, compressor);
+    pthread_setspecific(_key, compressor);
   }
   return compressor;
 }
