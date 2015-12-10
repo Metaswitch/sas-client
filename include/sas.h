@@ -46,9 +46,6 @@
 #include <string>
 #include <vector>
 
-#include <zlib.h>
-#include <lz4.h>
-
 #if HAVE_ATOMIC
   #include <atomic>
 #elif HAVE_CSTDATOMIC
@@ -134,64 +131,23 @@ public:
   class Compressor
   {
   public:
-    virtual std::string compress(const std::string& s, std::string dictionary);
+    virtual std::string compress(const std::string& s, std::string dictionary) = 0;
+    static Compressor* get(const Profile* profile);
 
   protected:
-    Compressor();
-    virtual ~Compressor();
-  };
-
-  class ZlibCompressor : public Compressor
-  {
-  public:
-    static Compressor* get();
-
-    std::string compress(const std::string& s, std::string dictionary);
-
+    Compressor() {};
+    virtual ~Compressor() {};
+  
   private:
     static void init();
     static void destroy(void* compressor_ptr);
-
-    ZlibCompressor();
-    ~ZlibCompressor();
-
-    static const int WINDOW_BITS = 15;
-    static const int MEM_LEVEL = 9;
-    // Variables with which to store a compressor on a per-thread basis.
-    static pthread_once_t _once;
-    static pthread_key_t _key;
-
-    z_stream _stream;
-    char _buffer[4096];
-  };
-
-  class LZ4Compressor : public Compressor
-  {
-  public:
-    static Compressor* get();
-
-    std::string compress(const std::string& s, std::string dictionary);
-
-  private:
-    // The maximum size of input we can process in one go.
-    static const int MAX_INPUT_SIZE = 4096;
-
-    // The default acceleration (1) is sufficient for us and gives best
-    // compression.
-    static const int ACCELERATION = 1;
-
-    static void init();
-    static void destroy(void* compressor_ptr);
-
-    LZ4Compressor();
-    ~LZ4Compressor();
     
+    static Compressor* get_zlib();
+    static Compressor* get_lz4();
     // Variables with which to store a compressor on a per-thread basis.
     static pthread_once_t _once;
-    static pthread_key_t _key;
-
-    LZ4_stream_t* _stream;
-    char _buffer[LZ4_COMPRESSBOUND(MAX_INPUT_SIZE)];
+    static pthread_key_t _zlib_key;
+    static pthread_key_t _lz4_key;
   };
 
   class Message
@@ -248,15 +204,7 @@ public:
     // Compression-related methods are only available if zlib is
     inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
     {
-      Compressor* compressor;
-      if ((profile != NULL) && profile->is_lz4())
-      {
-        compressor = LZ4Compressor::get();
-      }
-      else
-      {
-        ZlibCompressor::get();
-      }
+      Compressor* compressor = SAS::Compressor::get(profile);
       std::string dictionary = (profile != NULL) ? profile->get_dictionary() : "";
       return add_var_param(compressor->compress(s, dictionary));
     }
@@ -406,6 +354,8 @@ public:
 
   static Timestamp get_current_timestamp();
 
+  static sas_log_callback_t* _log_callback;
+
 private:
 
   static void write_hdr(std::string& s,
@@ -425,7 +375,6 @@ private:
   static std::atomic<TrailId> _next_trail_id;
   class Connection;
   static Connection* _connection;
-  static sas_log_callback_t* _log_callback;
   static create_socket_callback_t* _socket_callback;
 };
 

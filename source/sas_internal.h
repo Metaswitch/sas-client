@@ -44,7 +44,7 @@
 #define SAS_LOG_VERBOSE(...) SAS_LOG(SAS::LOG_LEVEL_VERBOSE, __FILE__, __LINE__, __VA_ARGS__)
 #define SAS_LOG_DEBUG(...) SAS_LOG(SAS::LOG_LEVEL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
 
-#define SAS_LOG(...) _log_callback(__VA_ARGS__)
+#define SAS_LOG(...) SAS::_log_callback(__VA_ARGS__)
 
 
 // SAS message types.

@@ -9,8 +9,8 @@ libsas.a: sas.o sas_compress.o modules/lz4/lib/lz4.o
 
 sas.o: source/sas.cpp source/sas_eventq.h source/sas_internal.h include/sas.h include/config.h modules/lz4/lib/lz4.h
 	g++ -Iinclude -Imodules/lz4/lib/ -std=c++0x -c source/sas.cpp -Wall -Werror -ggdb3
-sas_compress.o: source/sas_compress.cpp source/sas_compress_lz4.cpp source/sas_eventq.h source/sas_internal.h include/sas.h include/config.h modules/lz4/lib/lz4.h
-	g++ -Iinclude -Imodules/lz4/lib/ -std=c++0x -c source/sas_compress.cpp source/sas_compress_lz4.cpp -Wall -Werror -ggdb3
+sas_compress.o: source/sas_compress.cpp source/sas_eventq.h source/sas_internal.h include/sas.h include/config.h modules/lz4/lib/lz4.h
+	g++ -Iinclude -Imodules/lz4/lib/ -std=c++0x -c source/sas_compress.cpp -Wall -Werror -ggdb3
 
 modules/lz4/lib/lz4.o:
 	make -C modules/lz4 lib

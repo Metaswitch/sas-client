@@ -41,16 +41,64 @@
 #include <stdarg.h>
 #include <sys/socket.h>
 
+#include <zlib.h>
+#include <lz4.h>
+
 #include "sas.h"
 #include "sas_internal.h"
 
-pthread_once_t SAS::ZlibCompressor::_once = PTHREAD_ONCE_INIT;
-pthread_key_t SAS::ZlibCompressor::_key = {0};
+class ZlibCompressor : public SAS::Compressor
+{
+public:
+  ZlibCompressor();
+  ~ZlibCompressor();
+  std::string compress(const std::string& s, std::string dictionary);
+
+private:
+  static const int WINDOW_BITS = 15;
+  static const int MEM_LEVEL = 9;
+  // Variables with which to store a compressor on a per-thread basis.
+  static pthread_once_t _once;
+  static pthread_key_t _key;
+
+  z_stream _stream;
+  char _buffer[4096];
+};
+
+class LZ4Compressor : public SAS::Compressor
+{
+public:
+  LZ4Compressor();
+  ~LZ4Compressor();
+
+  std::string compress(const std::string& s, std::string dictionary);
+
+private:
+  // The maximum size of input we can process in one go.
+  static const int MAX_INPUT_SIZE = 4096;
+
+  // The default acceleration (1) is sufficient for us and gives best
+  // compression.
+  static const int ACCELERATION = 1;
+
+  LZ4_stream_t* _stream;
+  char _buffer[LZ4_COMPRESSBOUND(MAX_INPUT_SIZE)];
+};
+
+pthread_once_t SAS::Compressor::_once = PTHREAD_ONCE_INIT;
+pthread_key_t SAS::Compressor::_zlib_key = {0};
+pthread_key_t SAS::Compressor::_lz4_key = {0};
 
 /// Statically initialize the Compressor class by creating the thread-local key.
-void SAS::ZlibCompressor::init()
+void SAS::Compressor::init()
 {
-  int rc = pthread_key_create(&_key, destroy);
+  int rc = pthread_key_create(&_zlib_key, destroy);
+  if (rc != 0)
+  {
+    SAS_LOG_WARNING("Failed to create key for SAS parameter compressor");
+  }
+  
+  rc = pthread_key_create(&_lz4_key, destroy);
   if (rc != 0)
   {
     SAS_LOG_WARNING("Failed to create key for SAS parameter compressor");
@@ -58,27 +106,52 @@ void SAS::ZlibCompressor::init()
 }
 
 /// Get a thread-scope Compressor, or create one if it doesn't exist already.
-SAS::Compressor* SAS::ZlibCompressor::get()
+SAS::Compressor* SAS::Compressor::get(const Profile* profile)
 {
   (void)pthread_once(&_once, init);
-  Compressor* compressor = (Compressor*)pthread_getspecific(_key);
+  if ((profile != NULL) && profile->is_lz4())
+  {
+    return SAS::Compressor::get_lz4();
+  }
+  else
+  {
+    return SAS::Compressor::get_zlib();
+  }
+}
+
+/// Get a thread-scope Compressor, or create one if it doesn't exist already.
+SAS::Compressor* SAS::Compressor::get_zlib()
+{
+  Compressor* compressor = (Compressor*)pthread_getspecific(_zlib_key);
   if (compressor == NULL)
   {
     compressor = new ZlibCompressor();
-    pthread_setspecific(_key, compressor);
+    pthread_setspecific(_zlib_key, compressor);
+  }
+  return compressor;
+}
+
+/// Get a thread-scope Compressor, or create one if it doesn't exist already.
+SAS::Compressor* SAS::Compressor::get_lz4()
+{
+  Compressor* compressor = (Compressor*)pthread_getspecific(_lz4_key);
+  if (compressor == NULL)
+  {
+    compressor = new LZ4Compressor();
+    pthread_setspecific(_lz4_key, compressor);
   }
   return compressor;
 }
 
 /// Destroy a Compressor.  (Called by pthread when a thread terminates.)
-void SAS::ZlibCompressor::destroy(void* compressor_ptr)
+void SAS::Compressor::destroy(void* compressor_ptr)
 {
-  ZlibCompressor* compressor = (ZlibCompressor*)compressor_ptr;
+  Compressor* compressor = (Compressor*)compressor_ptr;
   delete compressor;
 }
 
 /// Compressor constructor.  Initializes the zlib compressor.
-SAS::ZlibCompressor::ZlibCompressor()
+ZlibCompressor::ZlibCompressor()
 {
   _stream.next_in = Z_NULL;
   _stream.avail_in = 0;
@@ -98,13 +171,13 @@ SAS::ZlibCompressor::ZlibCompressor()
 }
 
 /// Compressor destructor.  Terminates the zlib compressor.
-SAS::ZlibCompressor::~ZlibCompressor()
+ZlibCompressor::~ZlibCompressor()
 {
   deflateEnd(&_stream);
 }
 
 /// Compresses the specified string using the optional profile.
-std::string SAS::ZlibCompressor::compress(const std::string& s, std::string dictionary)
+std::string ZlibCompressor::compress(const std::string& s, std::string dictionary)
 {
   if (!dictionary.empty())
   {
@@ -137,6 +210,52 @@ std::string SAS::ZlibCompressor::compress(const std::string& s, std::string dict
 
   // Reset the compressor before we return.
   deflateReset(&_stream);
+
+  return compressed;
+}
+
+/// Compressor constructor.  Initializes the LZ4 compressor.
+LZ4Compressor::LZ4Compressor()
+{
+  _stream = LZ4_createStream();
+  if (_stream == NULL)
+  {
+    SAS_LOG_WARNING("Failed to initialize SAS parameter compressor");
+  }
+}
+
+/// Compressor destructor.  Terminates the LZ4 compressor.
+LZ4Compressor::~LZ4Compressor()
+{
+  // Free the stream.  Ignore the return code - the interface doesn't define
+  // its meaning, and it's currently hard-coded to 0.
+  (void)LZ4_freeStream(_stream); _stream = NULL;
+}
+
+/// Compresses the specified string using the optional profile.
+std::string LZ4Compressor::compress(const std::string& s, std::string dictionary)
+{
+  if (!dictionary.empty())
+  {
+    LZ4_loadDict(_stream, dictionary.c_str(), dictionary.length());
+  }
+
+  // Spin round, compressing up to a buffer's worth of input and appending it to the string.
+  std::string compressed;
+  for (unsigned int s_pos = 0; s_pos < s.length(); s_pos += MAX_INPUT_SIZE)
+  {
+    // Because we've allocated a big enough buffer, it's not possible for this call to fail.
+    int buffer_len = LZ4_compress_fast_continue(_stream,
+                                                &s.c_str()[s_pos],
+                                                _buffer,
+                                                (s.length() - s_pos > MAX_INPUT_SIZE) ? MAX_INPUT_SIZE : s.length() - s_pos,
+                                                sizeof(_buffer),
+                                                ACCELERATION);
+    compressed += std::string(_buffer, buffer_len);
+  }
+
+  // Reset the compressor before we return.
+  LZ4_resetStream(_stream);
 
   return compressed;
 }
