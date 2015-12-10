@@ -120,6 +120,7 @@ public:
     };
 
     inline Profile(std::string dictionary, CompressionType t = ZLIB) : _dictionary(dictionary), _type(t) {}
+    inline Profile(CompressionType t) : _dictionary(""), _type(t) {}
     inline const std::string& get_dictionary() const {return _dictionary;}
     inline bool is_lz4() const {return _type == LZ4;}
 
