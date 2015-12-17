@@ -107,7 +107,7 @@ void ZlibCompressor::init()
   int rc = pthread_key_create(&_key, SAS::Compressor::destroy);
   if (rc != 0)
   {
-    SAS_LOG_WARNING("Failed to create key for SAS parameter compressor");
+    SAS_LOG_WARNING("Failed to create key for zlib SAS parameter compressor");
   }
 }
 
@@ -117,7 +117,7 @@ void LZ4Compressor::init()
   int rc = pthread_key_create(&_key, SAS::Compressor::destroy);
   if (rc != 0)
   {
-    SAS_LOG_WARNING("Failed to create key for SAS parameter compressor");
+    SAS_LOG_WARNING("Failed to create key for LZ4 SAS parameter compressor");
   }
 }
 
@@ -183,7 +183,7 @@ ZlibCompressor::ZlibCompressor()
                         Z_DEFAULT_STRATEGY);
   if (rc != Z_OK)
   {
-    SAS_LOG_WARNING("Failed to initialize SAS parameter compressor (rc=%d)", rc);
+    SAS_LOG_WARNING("Failed to initialize zlib SAS parameter compressor (rc=%d)", rc);
   }
 }
 
@@ -193,7 +193,7 @@ ZlibCompressor::~ZlibCompressor()
   deflateEnd(&_stream);
 }
 
-/// Compresses the specified string using the optional profile.
+/// Compresses the specified string using the dictionary from the profile (if non-empty).
 std::string ZlibCompressor::compress(const std::string& s, std::string dictionary)
 {
   if (!dictionary.empty())
@@ -222,7 +222,7 @@ std::string ZlibCompressor::compress(const std::string& s, std::string dictionar
   // Check we succeeded.
   if (rc != Z_STREAM_END)
   {
-    SAS_LOG_WARNING("Failed to compress SAS parameter (rc=%d)", rc);
+    SAS_LOG_WARNING("Failed to zlib-compress SAS parameter (rc=%d)", rc);
   }
 
   // Reset the compressor before we return.
@@ -237,7 +237,7 @@ LZ4Compressor::LZ4Compressor()
   _stream = LZ4_createStream();
   if (_stream == NULL)
   {
-    SAS_LOG_WARNING("Failed to initialize SAS parameter compressor");
+    SAS_LOG_WARNING("Failed to initialize LZ$ SAS parameter compressor");
   }
 }
 
@@ -249,7 +249,7 @@ LZ4Compressor::~LZ4Compressor()
   (void)LZ4_freeStream(_stream); _stream = NULL;
 }
 
-/// Compresses the specified string using the optional profile.
+/// Compresses the specified string using the dictionary from the profile (if non-empty).
 std::string LZ4Compressor::compress(const std::string& s, std::string dictionary)
 {
   if (!dictionary.empty())
