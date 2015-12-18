@@ -54,10 +54,6 @@
   #error "Atomic types not supported"
 #endif
 
-#if HAVE_ZLIB_H
-  #include <zlib.h>
-#endif
-
 // SAS Client library Version number
 // format x.y.z
 // The SAS Client library uses semantic versioning. This means:
@@ -114,42 +110,36 @@ public:
   typedef uint64_t TrailId;
   typedef uint64_t Timestamp;
 
-#if HAVE_ZLIB_H
-  // Compression-related classes are only available if zlib is
+  // Compression profile
   class Profile
   {
   public:
-    inline Profile(std::string dictionary) : _dictionary(dictionary) {}
+    enum Algorithm {
+      ZLIB = 0,
+      LZ4
+    };
+
+    inline Profile(std::string dictionary, Algorithm a = ZLIB) : _dictionary(dictionary), _algorithm(a) {}
+    inline Profile(Algorithm a) : _dictionary(""), _algorithm(a) {}
     inline const std::string& get_dictionary() const {return _dictionary;}
+    inline Algorithm get_algorithm() const {return _algorithm;}
 
   private:
     const std::string _dictionary;
+    const Algorithm _algorithm;
   };
 
   class Compressor
   {
   public:
-    static Compressor* get();
+    virtual std::string compress(const std::string& s, std::string dictionary) = 0;
+    static Compressor* get(Profile::Algorithm algorithm);
 
-    std::string compress(const std::string& s, const Profile* profile = NULL);
-
-  private:
-    static void init();
+  protected:
+    Compressor() {};
+    virtual ~Compressor() {};
     static void destroy(void* compressor_ptr);
-
-    Compressor();
-    ~Compressor();
-
-    static const int WINDOW_BITS = 15;
-    static const int MEM_LEVEL = 9;
-    // Variables with which to store a compressor on a per-thread basis.
-    static pthread_once_t _once;
-    static pthread_key_t _key;
-
-    z_stream _stream;
-    char _buffer[4096];
   };
-#endif
 
   class Message
   {
@@ -202,12 +192,21 @@ public:
       return add_var_param(local_str);
     }
 
-#if HAVE_ZLIB_H
-    // Compression-related methods are only available if zlib is
     inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
     {
-      Compressor* compressor = Compressor::get();
-      return add_var_param(compressor->compress(s, profile));
+      // Default compression is zlib with no dictionary
+      Profile::Algorithm algorithm = Profile::Algorithm::ZLIB;
+      std::string dictionary = "";
+
+      // If a profile is provided, override those defaults
+      if (profile != NULL)
+      {
+        algorithm = profile->get_algorithm();
+        dictionary = profile->get_dictionary();
+      }
+
+      Compressor* compressor = SAS::Compressor::get(algorithm);
+      return add_var_param(compressor->compress(s, dictionary));
     }
 
     inline Message& add_compressed_param(size_t len, char* s, const Profile* profile = NULL)
@@ -227,7 +226,6 @@ public:
       std::string local_str(s);
       return add_compressed_param(local_str, profile);
     }
-#endif
 
     friend class SAS;
 
@@ -356,6 +354,8 @@ public:
 
   static Timestamp get_current_timestamp();
 
+  static sas_log_callback_t* _log_callback;
+
 private:
 
   static void write_hdr(std::string& s,
@@ -375,7 +375,6 @@ private:
   static std::atomic<TrailId> _next_trail_id;
   class Connection;
   static Connection* _connection;
-  static sas_log_callback_t* _log_callback;
   static create_socket_callback_t* _socket_callback;
 };
 

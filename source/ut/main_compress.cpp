@@ -89,6 +89,53 @@ void test_dictionary()
   ASSERT_PRINT_BYTES(expected.var_params[0] == dictionary_compressed, expected.var_params[0]);
 }
 
+void test_hello_world_lz4()
+{
+  SAS::Profile profile(SAS::Profile::CompressionType::LZ4);
+  SAS::Event event(1, 2, 3);
+  event.add_compressed_param("Test string.  Test string.\n", &profile);
+  std::string bytes = event.to_string();
+
+  SasTest::Event expected;
+  expected.parse(bytes);
+
+  unsigned char hello_world_compressed_bytes[] =
+  {
+    0xe4, 0x54, 0x65, 0x73, 0x74, 0x20, 0x73, 0x74,
+    0x72, 0x69, 0x6e, 0x67, 0x2e, 0x20, 0x20, 0x0e,
+    0x00, 0x50, 0x69, 0x6e, 0x67, 0x2e, 0x0a
+  };
+  std::string hello_world_compressed((char*)hello_world_compressed_bytes,
+                                     sizeof(hello_world_compressed_bytes));
+
+  ASSERT_PRINT_BYTES(expected.static_params.empty(), bytes);
+  ASSERT_PRINT_BYTES(expected.var_params.size() == 1, bytes);
+  ASSERT_PRINT_BYTES(expected.var_params[0] == hello_world_compressed, expected.var_params[0]);
+}
+
+void test_dictionary_lz4()
+{
+  SAS::Profile profile("Test string.", SAS::Profile::CompressionType::LZ4);
+  SAS::Event event(1, 2, 3);
+  event.add_compressed_param("Test string.  Test string.\n", &profile);
+  std::string bytes = event.to_string();
+
+  SasTest::Event expected;
+  expected.parse(bytes);
+
+  unsigned char dictionary_compressed_bytes[] =
+  {
+    0x08, 0x0c, 0x00, 0x24, 0x20, 0x20, 0x0e, 0x00,
+    0x50, 0x69, 0x6e, 0x67, 0x2e, 0x0a
+  };
+  std::string dictionary_compressed((char*)dictionary_compressed_bytes,
+                                    sizeof(dictionary_compressed_bytes));
+
+  ASSERT_PRINT_BYTES(expected.static_params.empty(), bytes);
+  ASSERT_PRINT_BYTES(expected.var_params.size() == 1, bytes);
+  ASSERT_PRINT_BYTES(expected.var_params[0] == dictionary_compressed, expected.var_params[0]);
+}
+
 void test_empty()
 {
   SAS::Event event(1, 2, 3);
@@ -115,6 +162,8 @@ int main(int argc, char *argv[])
 {
   RUN_TEST(CompressionTest::test_hello_world);
   RUN_TEST(CompressionTest::test_dictionary);
+  RUN_TEST(CompressionTest::test_hello_world_lz4);
+  RUN_TEST(CompressionTest::test_dictionary_lz4);
   RUN_TEST(CompressionTest::test_empty);
 
   if (failures == 0)
