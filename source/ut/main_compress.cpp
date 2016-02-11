@@ -91,7 +91,7 @@ void test_dictionary()
 
 void test_hello_world_lz4()
 {
-  SAS::Profile profile(SAS::Profile::CompressionType::LZ4);
+  SAS::Profile profile(SAS::Profile::Algorithm::LZ4);
   SAS::Event event(1, 2, 3);
   event.add_compressed_param("Test string.  Test string.\n", &profile);
   std::string bytes = event.to_string();
@@ -115,7 +115,7 @@ void test_hello_world_lz4()
 
 void test_dictionary_lz4()
 {
-  SAS::Profile profile("Test string.", SAS::Profile::CompressionType::LZ4);
+  SAS::Profile profile("Test string.", SAS::Profile::Algorithm::LZ4);
   SAS::Event event(1, 2, 3);
   event.add_compressed_param("Test string.  Test string.\n", &profile);
   std::string bytes = event.to_string();
