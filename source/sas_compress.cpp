@@ -42,7 +42,6 @@
 #include <sys/socket.h>
 
 #include <zlib.h>
-#include <lz4.h>
 
 #include "sas.h"
 #include "sas_internal.h"
@@ -52,7 +51,7 @@ class ZlibCompressor : public SAS::Compressor
 public:
   ZlibCompressor();
   ~ZlibCompressor();
-  std::string compress(const std::string& s, std::string dictionary);
+  std::string compress(const std::string& s, const SAS::Profile* profile);
 
   static SAS::Compressor* get();
 
@@ -75,7 +74,7 @@ public:
   LZ4Compressor();
   ~LZ4Compressor();
 
-  std::string compress(const std::string& s, std::string dictionary);
+  std::string compress(const std::string& s, const SAS::Profile* profile);
 
   static SAS::Compressor* get();
 
@@ -119,6 +118,31 @@ void LZ4Compressor::init()
   {
     SAS_LOG_WARNING("Failed to create key for LZ4 SAS parameter compressor");
   }
+}
+
+SAS::Profile::Profile(std::string dictionary, Profile::Algorithm a) :
+  _dictionary(dictionary),
+  _algorithm(a)
+
+{
+  _stream = LZ4_createStream();
+  LZ4_loadDict(_stream, dictionary.c_str(), dictionary.length());
+  LZ4_stream_preserve(_stream, &_stream_saved_buf);
+}
+
+SAS::Profile::Profile(Profile::Algorithm a) :
+  _dictionary(""),
+  _algorithm(a)
+
+{
+  _stream = LZ4_createStream();
+  LZ4_stream_preserve(_stream, &_stream_saved_buf);
+}
+
+
+void SAS::Profile::get_stream(LZ4_stream_t* stream) const
+{
+  LZ4_stream_restore_preserved(stream, _stream, _stream_saved_buf);
 }
 
 /// Get a thread-scope Compressor, or create one if it doesn't exist already.
@@ -194,10 +218,11 @@ ZlibCompressor::~ZlibCompressor()
 }
 
 /// Compresses the specified string using the dictionary from the profile (if non-empty).
-std::string ZlibCompressor::compress(const std::string& s, std::string dictionary)
+std::string ZlibCompressor::compress(const std::string& s, const SAS::Profile* profile)
 {
-  if (!dictionary.empty())
+  if (profile)
   {
+    std::string dictionary = profile->get_dictionary();
     deflateSetDictionary(&_stream, (const unsigned char*)dictionary.c_str(), dictionary.length());
   }
 
@@ -250,11 +275,11 @@ LZ4Compressor::~LZ4Compressor()
 }
 
 /// Compresses the specified string using the dictionary from the profile (if non-empty).
-std::string LZ4Compressor::compress(const std::string& s, std::string dictionary)
+std::string LZ4Compressor::compress(const std::string& s, const SAS::Profile* profile)
 {
-  if (!dictionary.empty())
+  if (profile)
   {
-    LZ4_loadDict(_stream, dictionary.c_str(), dictionary.length());
+    profile->get_stream(_stream);
   }
 
   // Spin round, compressing up to a buffer's worth of input and appending it to the string.
