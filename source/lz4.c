@@ -986,10 +986,10 @@ int LZ4_loadDict (LZ4_stream_t* LZ4_dict, const char* dictionary, int dictSize)
     return dict->dictSize;
 }
 
-int LZ4_stream_preserve(LZ4_stream_t* stream_, int** buf_out)
+int LZ4_stream_preserve(LZ4_stream_t* stream_, struct preserved_hash_table** buf_out)
 {
-  int nbytes = sizeof(int) * HASH_SIZE_U32;
-  int* buf = malloc(nbytes);
+  int nbytes = sizeof(struct preserved_hash_table) * HASH_SIZE_U32;
+  struct preserved_hash_table* buf = malloc(nbytes);
   memset(buf, -1, nbytes);
   *buf_out = buf;
   LZ4_stream_t_internal* stream = (LZ4_stream_t_internal*)stream_;
@@ -998,14 +998,15 @@ int LZ4_stream_preserve(LZ4_stream_t* stream_, int** buf_out)
   {
     if (stream->hashTable[i] != 0)
     {
-      buf[buf_pos] = i;
+      buf[buf_pos].location = i;
+      buf[buf_pos].value = stream->hashTable[i];
       buf_pos++;
     }
   }
   return buf_pos;
 }
 
-void LZ4_stream_restore_preserved(LZ4_stream_t* stream_, LZ4_stream_t* orig_, int* buf)
+void LZ4_stream_restore_preserved(LZ4_stream_t* stream_, LZ4_stream_t* orig_, struct preserved_hash_table* buf)
 {
   LZ4_stream_t_internal* orig = (LZ4_stream_t_internal*)orig_;
   LZ4_stream_t_internal* stream = (LZ4_stream_t_internal*)stream_;
@@ -1016,10 +1017,9 @@ void LZ4_stream_restore_preserved(LZ4_stream_t* stream_, LZ4_stream_t* orig_, in
 
   for (int i = 0; i < HASH_SIZE_U32; i++)
   {
-    int loc = buf[i];
-    if (loc != -1)
+    if (buf[i].location != -1)
     {
-      stream->hashTable[loc] = orig->hashTable[loc];
+      stream->hashTable[buf[i].location] = buf[i].value;
     }
     else
     {

@@ -131,7 +131,7 @@ public:
     const std::string _dictionary;
     const Algorithm _algorithm;
     LZ4_stream_t* _stream;
-    int* _stream_saved_buf;
+    struct preserved_hash_table* _stream_saved_buf;
   };
 
   class Compressor
