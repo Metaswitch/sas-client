@@ -122,16 +122,13 @@ public:
 
     Profile(std::string dictionary, Algorithm a = ZLIB);
     Profile(Algorithm a);
-    ~Profile() { LZ4_freeStream(_stream); free(_stream_saved_buf); };
+    ~Profile() {};
     inline const std::string& get_dictionary() const {return _dictionary;}
     inline Algorithm get_algorithm() const {return _algorithm;}
-    void get_stream(LZ4_stream_t* stream) const;
 
   private:
     const std::string _dictionary;
     const Algorithm _algorithm;
-    LZ4_stream_t* _stream;
-    struct preserved_hash_table* _stream_saved_buf;
   };
 
   class Compressor
