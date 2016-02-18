@@ -42,6 +42,7 @@
 #include <sys/socket.h>
 #include <unordered_map>
 
+#include <lz4.h>
 #include <zlib.h>
 
 #include "sas.h"
