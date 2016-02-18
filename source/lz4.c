@@ -988,11 +988,24 @@ int LZ4_loadDict (LZ4_stream_t* LZ4_dict, const char* dictionary, int dictSize)
 
 int LZ4_stream_preserve(LZ4_stream_t* stream_, struct preserved_hash_table** buf_out)
 {
-  int nbytes = sizeof(struct preserved_hash_table) * HASH_SIZE_U32;
+  LZ4_stream_t_internal* stream = (LZ4_stream_t_internal*)stream_;
+
+  int num_locs_needed = 0;
+  for (int i = 0; i < HASH_SIZE_U32; i++)
+  {
+    if (stream->hashTable[i] != 0)
+    {
+      num_locs_needed++;
+    }
+  }
+
+  // Add an extra location - this holds the sentinel value to indicate we're at the end of the array
+  num_locs_needed += 1;
+
+  int nbytes = sizeof(struct preserved_hash_table) * num_locs_needed;
   struct preserved_hash_table* buf = malloc(nbytes);
   memset(buf, -1, nbytes);
   *buf_out = buf;
-  LZ4_stream_t_internal* stream = (LZ4_stream_t_internal*)stream_;
   int buf_pos = 0;
   for (int i = 0; i < HASH_SIZE_U32; i++)
   {
