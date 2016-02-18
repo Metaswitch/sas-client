@@ -220,7 +220,7 @@ int           LZ4_freeStream (LZ4_stream_t* streamPtr);
 int LZ4_loadDict (LZ4_stream_t* streamPtr, const char* dictionary, int dictSize);
 
 
-struct preserved_hash_table_entry {
+struct preserved_hash_table_entry_t {
   int location;
   int value;
 };
@@ -230,12 +230,12 @@ struct preserved_hash_table_entry {
  *
  * This allocates buf with as much space as is needed, so the caller must later call free() on it.
  */
-int LZ4_stream_preserve(LZ4_stream_t* stream_, struct preserved_hash_table_entry** buf);
+int LZ4_stream_preserve(LZ4_stream_t* stream_, struct preserved_hash_table_entry_t** buf);
 
 /* LZ4_stream_restore_preserved
  * Use this function with a new stream and a buffer created by LZ4_stream_preserve, to reload its state
  */
-void LZ4_stream_restore_preserved(LZ4_stream_t* stream_, LZ4_stream_t* orig_, struct preserved_hash_table_entry* buf);
+void LZ4_stream_restore_preserved(LZ4_stream_t* stream_, LZ4_stream_t* orig_, struct preserved_hash_table_entry_t* buf);
 
 /*
  * LZ4_compress_fast_continue

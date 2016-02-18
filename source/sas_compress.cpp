@@ -70,7 +70,7 @@ private:
   char _buffer[4096];
 };
 
-typedef std::pair<LZ4_stream_t*, struct preserved_hash_table_entry*> saved_lz4_stream ;
+typedef std::pair<LZ4_stream_t*, struct preserved_hash_table_entry_t*> saved_lz4_stream ;
 
 class LZ4Compressor : public SAS::Compressor
 {
@@ -289,7 +289,7 @@ std::string LZ4Compressor::compress(const std::string& s, const SAS::Profile* pr
     {
       // Set up and cache the stream
       LZ4_stream_t* base_stream = LZ4_createStream();
-      struct preserved_hash_table_entry* stream_saved_buf;
+      struct preserved_hash_table_entry_t* stream_saved_buf;
       LZ4_loadDict(base_stream, profile->get_dictionary().c_str(), profile->get_dictionary().length());
       LZ4_stream_preserve(base_stream, &stream_saved_buf);
       _saved_streams[profile] = saved_lz4_stream(base_stream, stream_saved_buf);
