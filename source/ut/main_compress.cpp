@@ -43,6 +43,10 @@
 namespace CompressionTest
 {
 
+SAS::Profile zlib_profile("hello world");
+SAS::Profile lz4_profile(SAS::Profile::Algorithm::LZ4);
+SAS::Profile lz4_dict_profile("Test string.", SAS::Profile::Algorithm::LZ4);
+
 void test_hello_world()
 {
   SAS::Event event(1, 2, 3);
@@ -68,9 +72,8 @@ void test_hello_world()
 
 void test_dictionary()
 {
-  SAS::Profile profile("hello world");
   SAS::Event event(1, 2, 3);
-  event.add_compressed_param("hello world\n", &profile);
+  event.add_compressed_param("hello world\n", &zlib_profile);
   std::string bytes = event.to_string();
 
   SasTest::Event expected;
@@ -91,9 +94,8 @@ void test_dictionary()
 
 void test_hello_world_lz4()
 {
-  SAS::Profile profile(SAS::Profile::Algorithm::LZ4);
   SAS::Event event(1, 2, 3);
-  event.add_compressed_param("Test string.  Test string.\n", &profile);
+  event.add_compressed_param("Test string.  Test string.\n", &lz4_profile);
   std::string bytes = event.to_string();
 
   SasTest::Event expected;
@@ -115,9 +117,8 @@ void test_hello_world_lz4()
 
 void test_dictionary_lz4()
 {
-  SAS::Profile profile("Test string.", SAS::Profile::Algorithm::LZ4);
   SAS::Event event(1, 2, 3);
-  event.add_compressed_param("Test string.  Test string.\n", &profile);
+  event.add_compressed_param("Test string.  Test string.\n", &lz4_dict_profile);
   std::string bytes = event.to_string();
 
   SasTest::Event expected;
