@@ -6,7 +6,7 @@ This repository provides the Service Assurance Server client C++ library.
 
 A makefile is provided to compile the code to an archive file (`libsas.a`), which can be statically linked by applications wishing to use this library.
 
-This repository uses the zlib and LZ4 compression libraries. As LZ4 may not be available in all distributions, it's included as a Git submodule. To check this submodule out, run `git submodule update --init` (or clone the repository with `git clone --recursive ...`).
+This repository uses the zlib and LZ4 compression libraries. As LZ4 may not be available in all distributions, lz4.h and lz4.c are included in this repository and built into `libsas.a`.
 
 To build the library, run `make` in the top level directory. A `clean` target is also supplied.
 

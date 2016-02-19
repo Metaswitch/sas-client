@@ -40,9 +40,10 @@
 #include <netdb.h>
 #include <stdarg.h>
 #include <sys/socket.h>
+#include <unordered_map>
 
-#include <zlib.h>
 #include <lz4.h>
+#include <zlib.h>
 
 #include "sas.h"
 #include "sas_internal.h"
@@ -52,7 +53,7 @@ class ZlibCompressor : public SAS::Compressor
 public:
   ZlibCompressor();
   ~ZlibCompressor();
-  std::string compress(const std::string& s, std::string dictionary);
+  std::string compress(const std::string& s, const SAS::Profile* profile);
 
   static SAS::Compressor* get();
 
@@ -69,13 +70,15 @@ private:
   char _buffer[4096];
 };
 
+typedef std::pair<LZ4_stream_t*, struct preserved_hash_table_entry_t*> saved_lz4_stream ;
+
 class LZ4Compressor : public SAS::Compressor
 {
 public:
   LZ4Compressor();
   ~LZ4Compressor();
 
-  std::string compress(const std::string& s, std::string dictionary);
+  std::string compress(const std::string& s, const SAS::Profile* profile);
 
   static SAS::Compressor* get();
 
@@ -94,6 +97,8 @@ private:
 
   LZ4_stream_t* _stream;
   char _buffer[LZ4_COMPRESSBOUND(MAX_INPUT_SIZE)];
+
+  std::unordered_map<const SAS::Profile*, saved_lz4_stream> _saved_streams;
 };
 
 pthread_once_t ZlibCompressor::_once = PTHREAD_ONCE_INIT;
@@ -120,6 +125,21 @@ void LZ4Compressor::init()
     SAS_LOG_WARNING("Failed to create key for LZ4 SAS parameter compressor");
   }
 }
+
+SAS::Profile::Profile(std::string dictionary, Profile::Algorithm a) :
+  _dictionary(dictionary),
+  _algorithm(a)
+
+{
+}
+
+SAS::Profile::Profile(Profile::Algorithm a) :
+  _dictionary(""),
+  _algorithm(a)
+
+{
+}
+
 
 /// Get a thread-scope Compressor, or create one if it doesn't exist already.
 SAS::Compressor* SAS::Compressor::get(SAS::Profile::Algorithm algorithm)
@@ -194,10 +214,11 @@ ZlibCompressor::~ZlibCompressor()
 }
 
 /// Compresses the specified string using the dictionary from the profile (if non-empty).
-std::string ZlibCompressor::compress(const std::string& s, std::string dictionary)
+std::string ZlibCompressor::compress(const std::string& s, const SAS::Profile* profile)
 {
-  if (!dictionary.empty())
+  if (profile)
   {
+    std::string dictionary = profile->get_dictionary();
     deflateSetDictionary(&_stream, (const unsigned char*)dictionary.c_str(), dictionary.length());
   }
 
@@ -247,14 +268,37 @@ LZ4Compressor::~LZ4Compressor()
   // Free the stream.  Ignore the return code - the interface doesn't define
   // its meaning, and it's currently hard-coded to 0.
   (void)LZ4_freeStream(_stream); _stream = NULL;
+
+  for (std::unordered_map<const SAS::Profile*, saved_lz4_stream>::iterator saved_stream_iterator = _saved_streams.begin();
+       saved_stream_iterator != _saved_streams.end();
+       saved_stream_iterator++)
+  {
+    LZ4_freeStream(saved_stream_iterator->second.first);
+    free(saved_stream_iterator->second.second);
+  }
 }
 
 /// Compresses the specified string using the dictionary from the profile (if non-empty).
-std::string LZ4Compressor::compress(const std::string& s, std::string dictionary)
+std::string LZ4Compressor::compress(const std::string& s, const SAS::Profile* profile)
 {
-  if (!dictionary.empty())
+  if (profile)
   {
-    LZ4_loadDict(_stream, dictionary.c_str(), dictionary.length());
+    std::unordered_map<const SAS::Profile*, saved_lz4_stream>::iterator saved_stream_iterator = _saved_streams.find(profile);
+
+    if (saved_stream_iterator == _saved_streams.end())
+    {
+      // Set up and cache the stream
+      LZ4_stream_t* base_stream = LZ4_createStream();
+      struct preserved_hash_table_entry_t* stream_saved_buf;
+      LZ4_loadDict(base_stream, profile->get_dictionary().c_str(), profile->get_dictionary().length());
+      LZ4_stream_preserve(base_stream, &stream_saved_buf);
+      _saved_streams[profile] = saved_lz4_stream(base_stream, stream_saved_buf);
+      saved_stream_iterator = _saved_streams.find(profile);
+    }
+    
+    LZ4_stream_restore_preserved(_stream,
+                                 saved_stream_iterator->second.first,
+                                 saved_stream_iterator->second.second);
   }
 
   // Spin round, compressing up to a buffer's worth of input and appending it to the string.
