@@ -43,6 +43,8 @@
 namespace CompressionTest
 {
 
+// Profiles need to be static (matching how they're used in real code)
+// so that the compressors can match them to the saved streams.
 SAS::Profile zlib_profile("hello world");
 SAS::Profile lz4_profile(SAS::Profile::Algorithm::LZ4);
 SAS::Profile lz4_dict_profile("Test string.", SAS::Profile::Algorithm::LZ4);
