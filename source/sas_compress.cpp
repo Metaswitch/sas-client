@@ -126,21 +126,6 @@ void LZ4Compressor::init()
   }
 }
 
-SAS::Profile::Profile(std::string dictionary, Profile::Algorithm a) :
-  _dictionary(dictionary),
-  _algorithm(a)
-
-{
-}
-
-SAS::Profile::Profile(Profile::Algorithm a) :
-  _dictionary(""),
-  _algorithm(a)
-
-{
-}
-
-
 /// Get a thread-scope Compressor, or create one if it doesn't exist already.
 SAS::Compressor* SAS::Compressor::get(SAS::Profile::Algorithm algorithm)
 {
