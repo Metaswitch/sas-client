@@ -119,8 +119,10 @@ public:
       LZ4
     };
 
-    Profile(std::string dictionary, Algorithm a = ZLIB);
-    Profile(Algorithm a);
+    Profile(std::string dictionary, Algorithm a = ZLIB):
+      _dictionary(dictionary),_algorithm(a) {};
+    Profile(Algorithm a):
+      _dictionary(""),_algorithm(a) {};
     ~Profile() {};
     inline const std::string& get_dictionary() const {return _dictionary;}
     inline Algorithm get_algorithm() const {return _algorithm;}
