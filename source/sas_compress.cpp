@@ -83,9 +83,6 @@ public:
   static SAS::Compressor* get();
 
 private:
-  // The maximum size of input we can process in one go.
-  static const int MAX_INPUT_SIZE = 4096;
-
   // The default acceleration (1) is sufficient for us and gives best
   // compression.
   static const int ACCELERATION = 1;
@@ -96,7 +93,9 @@ private:
   static pthread_key_t _key;
 
   LZ4_stream_t* _stream;
-  char _buffer[LZ4_COMPRESSBOUND(MAX_INPUT_SIZE)];
+
+  int _buffer_len;
+  char* _buffer;
 
   std::unordered_map<const SAS::Profile*, saved_lz4_stream> _saved_streams;
 };
@@ -238,12 +237,14 @@ std::string ZlibCompressor::compress(const std::string& s, const SAS::Profile* p
 }
 
 /// Compressor constructor.  Initializes the LZ4 compressor.
-LZ4Compressor::LZ4Compressor()
+LZ4Compressor::LZ4Compressor():
+  _buffer_len(4096)
 {
+  _buffer = (char*)malloc(_buffer_len);
   _stream = LZ4_createStream();
   if (_stream == NULL)
   {
-    SAS_LOG_WARNING("Failed to initialize LZ$ SAS parameter compressor");
+    SAS_LOG_WARNING("Failed to initialize LZ4 SAS parameter compressor");
   }
 }
 
@@ -266,9 +267,11 @@ LZ4Compressor::~LZ4Compressor()
 /// Compresses the specified string using the dictionary from the profile (if non-empty).
 std::string LZ4Compressor::compress(const std::string& s, const SAS::Profile* profile)
 {
+  // Get (or create) our saved stream with a pre-loaded dictionary
+  std::unordered_map<const SAS::Profile*, saved_lz4_stream>::iterator saved_stream_iterator;
   if (profile)
   {
-    std::unordered_map<const SAS::Profile*, saved_lz4_stream>::iterator saved_stream_iterator = _saved_streams.find(profile);
+    saved_stream_iterator = _saved_streams.find(profile);
 
     if (saved_stream_iterator == _saved_streams.end())
     {
@@ -280,24 +283,46 @@ std::string LZ4Compressor::compress(const std::string& s, const SAS::Profile* pr
       _saved_streams[profile] = saved_lz4_stream(base_stream, stream_saved_buf);
       saved_stream_iterator = _saved_streams.find(profile);
     }
-    
-    LZ4_stream_restore_preserved(_stream,
-                                 saved_stream_iterator->second.first,
-                                 saved_stream_iterator->second.second);
   }
+
+
 
   // Spin round, compressing up to a buffer's worth of input and appending it to the string.
   std::string compressed;
-  for (unsigned int s_pos = 0; s_pos < s.length(); s_pos += MAX_INPUT_SIZE)
+  bool success = false;
+  while (!success)
   {
-    // Because we've allocated a big enough buffer, it's not possible for this call to fail.
-    int buffer_len = LZ4_compress_fast_continue(_stream,
-                                                &s.c_str()[s_pos],
-                                                _buffer,
-                                                (s.length() - s_pos > MAX_INPUT_SIZE) ? MAX_INPUT_SIZE : s.length() - s_pos,
-                                                sizeof(_buffer),
-                                                ACCELERATION);
-    compressed += std::string(_buffer, buffer_len);
+    // Clear the stream after the last compression attempt.
+    LZ4_resetStream(_stream);
+
+    if (profile)
+    {
+      LZ4_stream_restore_preserved(_stream,
+                                   saved_stream_iterator->second.first,
+                                   saved_stream_iterator->second.second);
+    }
+
+
+    // Attempt to compress this data using the current buffer.
+    int compressed_len = LZ4_compress_fast_continue(_stream,
+                                                    s.c_str(),
+                                                    _buffer,
+                                                    s.length(),
+                                                    _buffer_len,
+                                                    ACCELERATION);
+
+    if (compressed_len <= 0)
+    {
+      // Compression failed - retry with a bigger buffer. We permanently
+      // enlarge this buffer so we aren't redoing this on every compression.
+      _buffer_len *= 2;
+      _buffer = (char*)realloc((void*)_buffer, _buffer_len);
+    }
+    else
+    {
+      compressed = std::string(_buffer, compressed_len);
+      success = true;
+    }
   }
 
   // Reset the compressor before we return.
