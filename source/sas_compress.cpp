@@ -285,9 +285,8 @@ std::string LZ4Compressor::compress(const std::string& s, const SAS::Profile* pr
     }
   }
 
-
-
-  // Spin round, compressing up to a buffer's worth of input and appending it to the string.
+  // Attempt to compress the data, allocating a bigger buffer if compression
+  // fails.
   std::string compressed;
   bool success = false;
   while (!success)
@@ -302,7 +301,6 @@ std::string LZ4Compressor::compress(const std::string& s, const SAS::Profile* pr
                                    saved_stream_iterator->second.second);
     }
 
-
     // Attempt to compress this data using the current buffer.
     int compressed_len = LZ4_compress_fast_continue(_stream,
                                                     s.c_str(),
@@ -313,7 +311,9 @@ std::string LZ4Compressor::compress(const std::string& s, const SAS::Profile* pr
 
     if (compressed_len <= 0)
     {
-      // Compression failed - retry with a bigger buffer. We permanently
+      // Compression failed - retry with a bigger buffer. Buffer size is the
+      // only reason it can fail (the LZ4 documentation says this function is
+      // guaranteed to succeed if the buffer is large enough). We permanently
       // enlarge this buffer so we aren't redoing this on every compression.
       _buffer_len *= 2;
       _buffer = (char*)realloc((void*)_buffer, _buffer_len);
