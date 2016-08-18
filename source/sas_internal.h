@@ -52,6 +52,7 @@ const int SAS_MSG_INIT   = 1;
 const int SAS_MSG_TRAIL_ASSOC   = 2;
 const int SAS_MSG_EVENT  = 3;
 const int SAS_MSG_MARKER = 4;
+const int SAS_MSG_ANALYTICS = 7;
 
 // SAS message header sizes
 
@@ -78,5 +79,18 @@ const int EVENT_HDR_SIZE  = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t
 // - [ 1 byte  ] Is correlating?
 // - [ 1 bytes ] Correlation scope.
 const int MARKER_HDR_SIZE = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint8_t);
+
+// Analytics headers consist of the same fields as an Event plus several
+// additional fields.
+// This contant only defines the size of the static length header fields, the
+// length of the variable length source_type and friendly_id fields can be
+// calculated by calling Analytics::variable_header_buf_len().
+//
+// - [ 8 bytes ] Trail ID.
+// - [ 4 bytes ] Event ID.
+// - [ 4 bytes ] Instance ID.
+// - [ 1 byte  ] Format type
+// - [ 1 byte  ] Store event in SAS?
+const int ANALYTICS_STATIC_HDR_SIZE = COMMON_HDR_SIZE + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint8_t);
 
 #endif
