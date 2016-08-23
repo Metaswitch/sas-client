@@ -15,3 +15,8 @@ The library must be built with gcc 4.4 (or higher). It has been tested on Ubuntu
 To include this library in your application, you must ensure that all the files in `include/` are in your applications include path, and you have `#include <sas.h>` in your code.
 
 To link with this library you should ensure `libsas.a` is in your link path (using the `-L` option) and supply `-lsas -lpthread -lrt` to the linker.
+
+LZ4
+---
+
+This repository includes the LZ4 code from https://github.com/Cyan4973/lz4 (licensed under a permissive 2-clause BSD license - see https://github.com/Cyan4973/lz4/blob/master/lib/LICENSE). We took the code from Git commit `d86dc91`.
