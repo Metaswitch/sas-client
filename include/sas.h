@@ -119,8 +119,11 @@ public:
       LZ4
     };
 
-    inline Profile(std::string dictionary, Algorithm a = ZLIB) : _dictionary(dictionary), _algorithm(a) {}
-    inline Profile(Algorithm a) : _dictionary(""), _algorithm(a) {}
+    Profile(std::string dictionary, Algorithm a = ZLIB):
+      _dictionary(dictionary),_algorithm(a) {};
+    Profile(Algorithm a):
+      _dictionary(""),_algorithm(a) {};
+    ~Profile() {};
     inline const std::string& get_dictionary() const {return _dictionary;}
     inline Algorithm get_algorithm() const {return _algorithm;}
 
@@ -132,7 +135,7 @@ public:
   class Compressor
   {
   public:
-    virtual std::string compress(const std::string& s, std::string dictionary) = 0;
+    virtual std::string compress(const std::string& s, const Profile* profile) = 0;
     static Compressor* get(Profile::Algorithm algorithm);
 
   protected:
@@ -196,17 +199,15 @@ public:
     {
       // Default compression is zlib with no dictionary
       Profile::Algorithm algorithm = Profile::Algorithm::ZLIB;
-      std::string dictionary = "";
 
       // If a profile is provided, override those defaults
       if (profile != NULL)
       {
         algorithm = profile->get_algorithm();
-        dictionary = profile->get_dictionary();
       }
 
       Compressor* compressor = SAS::Compressor::get(algorithm);
-      return add_var_param(compressor->compress(s, dictionary));
+      return add_var_param(compressor->compress(s, profile));
     }
 
     inline Message& add_compressed_param(size_t len, char* s, const Profile* profile = NULL)

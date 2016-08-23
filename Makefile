@@ -7,8 +7,8 @@ build: libsas.a
 libsas.a: sas.o sas_compress.o lz4.o
 	ar cr libsas.a $^
 
-C_FLAGS := -Iinclude -std=c99 -Wall -Werror -ggdb3
-CPP_FLAGS := -Iinclude -std=c++0x -Wall -Werror -ggdb3
+C_FLAGS := -O3 -Iinclude -std=c99 -Wall -Werror -ggdb3
+CPP_FLAGS := -O3 -Iinclude -std=c++0x -Wall -Werror -ggdb3
 
 sas.o: source/sas.cpp source/sas_eventq.h source/sas_internal.h include/sas.h include/config.h include/lz4.h
 	g++ ${CPP_FLAGS} -c $<
