@@ -4,16 +4,18 @@ all: build
 .PHONY: build
 build: libsas.a
 
-libsas.a: sas.o sas_compress.o modules/lz4/lib/lz4.o
-	ar cr libsas.a sas.o sas_compress.o modules/lz4/lib/lz4.o
+libsas.a: sas.o sas_compress.o lz4.o
+	ar cr libsas.a $^
 
-sas.o: source/sas.cpp source/sas_eventq.h source/sas_internal.h include/sas.h include/config.h modules/lz4/lib/lz4.h
-	g++ -Iinclude -Imodules/lz4/lib/ -std=c++0x -c source/sas.cpp -Wall -Werror -ggdb3
-sas_compress.o: source/sas_compress.cpp source/sas_eventq.h source/sas_internal.h include/sas.h include/config.h modules/lz4/lib/lz4.h
-	g++ -Iinclude -Imodules/lz4/lib/ -std=c++0x -c source/sas_compress.cpp -Wall -Werror -ggdb3
+C_FLAGS := -O3 -Iinclude -std=c99 -Wall -Werror -ggdb3
+CPP_FLAGS := -O3 -Iinclude -std=c++0x -Wall -Werror -ggdb3
 
-modules/lz4/lib/lz4.o:
-	make -C modules/lz4 lib
+sas.o: source/sas.cpp source/sas_eventq.h source/sas_internal.h include/sas.h include/config.h include/lz4.h
+	g++ ${CPP_FLAGS} -c $<
+sas_compress.o: source/sas_compress.cpp source/sas_eventq.h source/sas_internal.h include/sas.h include/config.h include/lz4.h
+	g++ ${CPP_FLAGS} -c $<
+lz4.o: source/lz4.c include/lz4.h
+	gcc ${C_FLAGS} -c $<
 
 include/config.h: configure
 	./configure
@@ -21,7 +23,6 @@ include/config.h: configure
 .PHONY: clean
 clean:
 	rm -rf *.o *.a include/config.h sas_test sas_compress_test
-	make -C modules/lz4 clean
 
 .PHONY: test test_compress
 test: sas_test
