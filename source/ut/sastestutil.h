@@ -325,6 +325,91 @@ namespace SasTest
     uint32_t instance_id;
   };
 
+  class Analytics : public Message
+  {
+  public:
+    Analytics() :
+      Message(),
+      length(0), version(0), msg_type(0), trail(0), event_id(0),
+      instance_id(0), format_type(0), store_msg(0)
+    {}
+
+    ~Analytics() {};
+
+    // Parse a supplied buffer as an Analytics event.
+    //
+    // @param buf the buffer to parse.
+    // @return whether the message parsed successfully.
+    bool parse(std::string buf)
+    {
+      _buffer = buf;
+      _offset = 0;
+      bool success = true;
+
+      try
+      {
+        parse_network_int16(length);
+        parse_int8(version);
+        parse_int8(msg_type);
+        parse_network_int64(timestamp);
+        parse_network_int64(trail);
+        parse_network_int32(event_id);
+        parse_network_int32(instance_id);
+        parse_int8(format_type);
+        parse_int8(store_msg);
+
+        uint16_t source_type_len;
+        parse_network_int16(source_type_len);
+        parse_string(source_type, source_type_len);
+
+        uint16_t friendly_id_len;
+        parse_network_int16(friendly_id_len);
+        parse_string(friendly_id, friendly_id_len);
+
+        parse_params();
+        parse_complete(length);
+      }
+      catch (ParseError)
+      {
+        success = false;
+      }
+
+      return success;
+    }
+
+    // Return a string representation of the Analytics event.
+    std::string to_string()
+    {
+      std::ostringstream oss;
+      oss << "Length:            " << length << std::endl;
+      oss << "Version:           " << (int)version << std::endl;
+      oss << "Type:              " << (int)msg_type << std::endl;
+      oss << "Trail ID:          " << trail << std::endl;
+      oss << "Event ID:          " << event_id << std::endl;
+      oss << "Instance ID:       " << instance_id << std::endl;
+      oss << "Format Type:       " << format_type << std::endl;
+      oss << "Store Msg:         " << (bool)store_msg << std::endl;
+      oss << "Source Type:       " << source_type << std::endl;
+      oss << "Friendly ID:       " << friendly_id << std::endl;
+      oss << params_to_string();
+
+      return oss.str();
+    }
+
+
+    uint16_t length;
+    uint8_t version;
+    uint8_t msg_type;
+    uint64_t timestamp;
+    SAS::TrailId trail;
+    uint32_t event_id;
+    uint32_t instance_id;
+    uint8_t format_type;
+    uint8_t store_msg;
+    std::string source_type;
+    std::string friendly_id;
+  };
+
   class Marker : public Message
   {
   public:
