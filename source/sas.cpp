@@ -114,6 +114,7 @@ int SAS::init(const std::string& system_name,
   _log_callback = log_callback;
   _socket_callback = socket_callback;
 
+  if (sas_address != "0.0.0.0")
   {
     // Check the system and resource parameters are present and have the correct
     // length.
@@ -157,9 +158,8 @@ int SAS::init(const std::string& system_name,
     }
 
     // Parse the SAS addresses to connect to.
-    const char* s = getenv("sas_addresses");
     std::vector<std::string> addresses;
-    boost::split(addresses, s, boost::is_any_of(", "));
+    boost::split(addresses, sas_address, boost::is_any_of("|"));
 
     for (const std::string& addr: addresses)
     {

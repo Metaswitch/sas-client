@@ -436,7 +436,7 @@ void test_initialization()
   SAS::init("Sprout",
             "Sprout",
             "org.projectclearwater",
-            "0.0.0.0",
+            "127.0.0.1|127.0.0.2",
             SAS::log_to_stdout);
   sleep(60);
   SAS::term();
