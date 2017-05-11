@@ -43,7 +43,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <iostream>
-#include <fstream>
+#include <boost/algorithm/string/classification.hpp> // Include boost::for is_any_of
+#include <boost/algorithm/string/split.hpp> // Include for boost::split
 
 #include "sas.h"
 #include "sas_eventq.h"
@@ -156,13 +157,12 @@ int SAS::init(const std::string& system_name,
     }
 
     // Parse the SAS addresses to connect to.
-    std::fstream fs;
-    SAS_LOG_STATUS("Parsing address config");
-    fs.open("/etc/clearwater/sas_addresses.txt", std::fstream::in);
-    while (!fs.eof())
+    const char* s = getenv("sas_addresses");
+    std::vector<std::string> addresses;
+    boost::split(addresses, s, boost::is_any_of(", "));
+
+    for (const std::string& addr: addresses)
     {
-      std::string addr;
-      getline(fs, addr);
       if (!addr.empty())
       {
         SAS_LOG_STATUS("Got SAS address: %s", addr.c_str());
@@ -172,7 +172,6 @@ int SAS::init(const std::string& system_name,
                                               addr));
       }
     }
-    fs.close();
   }
 
   return SAS_INIT_RC_OK;
