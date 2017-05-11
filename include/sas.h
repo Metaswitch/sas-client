@@ -45,6 +45,7 @@
 #include <string.h>
 #include <string>
 #include <vector>
+#include <random>
 
 #if HAVE_ATOMIC
   #include <atomic>
@@ -197,17 +198,17 @@ public:
 
     inline Message& add_compressed_param(const std::string& s, const Profile* profile = NULL)
     {
-      // Default compression is zlib with no dictionary
-      Profile::Algorithm algorithm = Profile::Algorithm::ZLIB;
-
-      // If a profile is provided, override those defaults
-      if (profile != NULL)
-      {
-        algorithm = profile->get_algorithm();
-      }
-
-      Compressor* compressor = SAS::Compressor::get(algorithm);
-      return add_var_param(compressor->compress(s, profile));
+//      // Default compression is zlib with no dictionary
+//      Profile::Algorithm algorithm = Profile::Algorithm::ZLIB;
+//
+//      // If a profile is provided, override those defaults
+//      if (profile != NULL)
+//      {
+//        algorithm = profile->get_algorithm();
+//      }
+//
+//      Compressor* compressor = SAS::Compressor::get(algorithm);
+      return add_var_param(s);
     }
 
     inline Message& add_compressed_param(size_t len, char* s, const Profile* profile = NULL)
@@ -413,8 +414,9 @@ private:
 
   static std::atomic<TrailId> _next_trail_id;
   class Connection;
-  static Connection* _connection;
+  static std::vector<Connection*> _connections;
   static create_socket_callback_t* _socket_callback;
+  static std::mt19937_64 mt_rand;
 };
 
 #endif

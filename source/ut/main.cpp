@@ -36,6 +36,9 @@
 
 #include "sas.h"
 #include "sastestutil.h"
+#include <stdio.h>
+#include <stdarg.h>
+#include <unistd.h>
 
 //
 // Event tests.
@@ -425,6 +428,23 @@ void test_xml_with_store()
 }
 } // namespace AnalyticsTest
 
+
+namespace InitTest {
+
+void test_initialization()
+{
+  SAS::init("Sprout",
+            "Sprout",
+            "org.projectclearwater",
+            "0.0.0.0",
+            SAS::log_to_stdout);
+  sleep(60);
+  SAS::term();
+}
+
+
+}
+
 int main(int argc, char *argv[])
 {
   RUN_TEST(EventTest::test_empty);
@@ -452,6 +472,8 @@ int main(int argc, char *argv[])
 
   RUN_TEST(AnalyticsTest::test_json_no_store);
   RUN_TEST(AnalyticsTest::test_xml_with_store);
+
+  RUN_TEST(InitTest::test_initialization);
 
   if (failures == 0)
   {

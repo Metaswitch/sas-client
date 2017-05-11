@@ -42,6 +42,8 @@
 #include <stdarg.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <iostream>
+#include <fstream>
 
 #include "sas.h"
 #include "sas_eventq.h"
@@ -57,9 +59,10 @@ const uint8_t ASSOC_OP_ASSOCIATE = 0x01;
 const uint8_t ASSOC_OP_NO_REACTIVATE = 0x02;
 
 std::atomic<SAS::TrailId> SAS::_next_trail_id(1);
-SAS::Connection* SAS::_connection = NULL;
+std::vector<SAS::Connection*> SAS::_connections;
 SAS::sas_log_callback_t* SAS::_log_callback = NULL;
 SAS::create_socket_callback_t* SAS::_socket_callback = NULL;
+std::mt19937_64 SAS::mt_rand(time(0));
 
 class SAS::Connection
 {
@@ -110,7 +113,6 @@ int SAS::init(const std::string& system_name,
   _log_callback = log_callback;
   _socket_callback = socket_callback;
 
-  if (sas_address != "0.0.0.0")
   {
     // Check the system and resource parameters are present and have the correct
     // length.
@@ -153,10 +155,24 @@ int SAS::init(const std::string& system_name,
       return SAS_INIT_RC_ERR;
     }
 
-    _connection = new Connection(system_name,
-                                 system_type,
-                                 resource_identifier,
-                                 sas_address);
+    // Parse the SAS addresses to connect to.
+    std::fstream fs;
+    SAS_LOG_STATUS("Parsing address config");
+    fs.open("/etc/clearwater/sas_addresses.txt", std::fstream::in);
+    while (!fs.eof())
+    {
+      std::string addr;
+      getline(fs, addr);
+      if (!addr.empty())
+      {
+        SAS_LOG_STATUS("Got SAS address: %s", addr.c_str());
+        _connections.push_back(new Connection(system_name,
+                                              system_type,
+                                              resource_identifier,
+                                              addr));
+      }
+    }
+    fs.close();
   }
 
   return SAS_INIT_RC_OK;
@@ -165,8 +181,10 @@ int SAS::init(const std::string& system_name,
 
 void SAS::term()
 {
-  delete _connection;
-  _connection = NULL;
+  for (Connection* conn: _connections)
+  {
+    delete conn; conn = NULL;
+  }
 }
 
 
@@ -476,33 +494,48 @@ void SAS::Connection::send_msg(std::string msg)
 
 SAS::TrailId SAS::new_trail(uint32_t instance)
 {
-  TrailId trail = _next_trail_id++;
+  TrailId trail = mt_rand();
   return trail;
 }
 
 
 void SAS::report_event(const Event& event)
 {
-  if (_connection)
+  if (!_connections.empty())
   {
-    _connection->send_msg(event.to_string());
+    int conn_ix = event._trail % _connections.size();
+    Connection* conn = _connections[conn_ix];
+    if (conn)
+    {
+      conn->send_msg(event.to_string());
+    }
   }
 }
 
 void SAS::report_analytics(const Analytics& analytics, bool sas_store)
 {
-  if (_connection)
+  if (!_connections.empty())
   {
-    _connection->send_msg(analytics.to_string(sas_store));
+    int conn_ix = analytics._trail % _connections.size();
+    Connection* conn = _connections[conn_ix];
+    if (conn)
+    {
+      conn->send_msg(analytics.to_string(sas_store));
+    }
   }
 }
 
 
 void SAS::report_marker(const Marker& marker, Marker::Scope scope, bool reactivate)
 {
-  if (_connection)
+  if (!_connections.empty())
   {
-    _connection->send_msg(marker.to_string(scope, reactivate));
+    int conn_ix = marker._trail % _connections.size();
+    Connection* conn = _connections[conn_ix];
+    if (conn)
+    {
+      conn->send_msg(marker.to_string(scope, reactivate));
+    }
   }
 }
 
@@ -515,9 +548,14 @@ void SAS::associate_trails(TrailId trail_a,
   write_trail(trail_assoc_msg, trail_a);
   write_trail(trail_assoc_msg, trail_b);
   write_int8(trail_assoc_msg, (uint8_t)scope);
-  if (_connection)
+  if (!_connections.empty())
   {
-    _connection->send_msg(trail_assoc_msg);
+    int conn_ix = trail_a % _connections.size();
+    Connection* conn = _connections[conn_ix];
+    if (conn)
+    {
+      conn->send_msg(trail_assoc_msg);
+    }
   }
 }
 
