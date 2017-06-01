@@ -373,7 +373,7 @@ public:
                            const char *fmt,
                            ...);
 
-  static int init(const std::string& system_name,
+  static int init(std::string system_name,
                   const std::string& system_type,
                   const std::string& resource_identifier,
                   const std::string& sas_address,
