@@ -318,14 +318,19 @@ std::string LZ4Compressor::compress(const std::string& s, const SAS::Profile* pr
       // guaranteed to succeed if the buffer is large enough). We permanently
       // enlarge this buffer so we aren't redoing this on every compression.
 
-      if ((_buffer_len * 2) > MAX_BUFFER_SIZE)
+      int new_buffer_length = _buffer_len * 2;
+
+      if (new_buffer_length > MAX_BUFFER_SIZE)
       {
-        SAS_LOG_WARNING("Attempting to compress %ul bytes of data - won't fit into %ul bytes",
-                        s.length(), _buffer_len);
+        SAS_LOG_WARNING("Attempting to compress %ul bytes of data - won't fit "
+                        "into %ul bytes, proposed new buffer of %ul bytes "
+                        "exceeds maximum of %lu bytes",
+                        s.length(), _buffer_len, new_buffer_length,
+                        MAX_BUFFER_SIZE);
         break;
       }
 
-      _buffer_len *= 2;
+      _buffer_len = new_buffer_length;
 
       _buffer = (char*)realloc((void*)_buffer, _buffer_len);
     }
