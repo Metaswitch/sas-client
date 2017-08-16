@@ -322,8 +322,8 @@ std::string LZ4Compressor::compress(const std::string& s, const SAS::Profile* pr
 
       if (new_buffer_length > MAX_BUFFER_SIZE)
       {
-        SAS_LOG_WARNING("Attempting to compress %ul bytes of data - won't fit "
-                        "into %ul bytes, proposed new buffer of %ul bytes "
+        SAS_LOG_WARNING("Attempting to compress %lu bytes of data - won't fit "
+                        "into %lu bytes, proposed new buffer of %lu bytes "
                         "exceeds maximum of %lu bytes",
                         s.length(), _buffer_len, new_buffer_length,
                         MAX_BUFFER_SIZE);
