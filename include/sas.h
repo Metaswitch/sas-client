@@ -101,7 +101,8 @@ static const int SAS_INIT_RC_ERR = 1;
 enum struct UniquenessScopes
 {
   DIAMETER_SID_RFC6733 = 1,
-  UUID_RFC4122 = 2
+  UUID_RFC4122 = 2,
+  DIGEST_OPAQUE = 3
 };
 
 class SAS
