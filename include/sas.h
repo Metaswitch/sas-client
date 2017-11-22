@@ -102,7 +102,8 @@ enum struct UniquenessScopes
 {
   DIAMETER_SID_RFC6733 = 1,
   UUID_RFC4122 = 2,
-  DIGEST_OPAQUE = 3
+  ASYNC_CFG_SUB_DN = 3,
+  DIGEST_OPAQUE = 4
 };
 
 class SAS
