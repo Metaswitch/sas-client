@@ -100,12 +100,12 @@ private:
   static const int MAX_MSG_QUEUE = 1000;
 };
 
-int SAS::init(const std::string& system_name,
-               const std::string& system_type,
-               const std::string& resource_identifier,
-               const std::string& sas_address,
-               sas_log_callback_t* log_callback,
-               create_socket_callback_t* socket_callback)
+int SAS::init(std::string system_name,
+              const std::string& system_type,
+              const std::string& resource_identifier,
+              const std::string& sas_address,
+              sas_log_callback_t* log_callback,
+              create_socket_callback_t* socket_callback)
 {
   _log_callback = log_callback;
   _socket_callback = socket_callback;
@@ -122,9 +122,9 @@ int SAS::init(const std::string& system_name,
 
     if (system_name.length() > MAX_SYSTEM_LEN)
     {
-      SAS_LOG_ERROR("Error connecting to SAS - System name is longer than %d characters.",
-                    MAX_SYSTEM_LEN);
-      return SAS_INIT_RC_ERR;
+      SAS_LOG_WARNING("System name is longer than %d characters, truncating.",
+                      MAX_SYSTEM_LEN);
+      system_name.resize(MAX_SYSTEM_LEN);
     }
 
     if (system_type.length() <= 0)
