@@ -242,49 +242,52 @@ void SAS::Connection::writer()
     {
       _connected = true;
       // Now can start dequeuing and sending data.
-      std::string msg;
-      while ((_sock > 0) && _msg_q.pop(msg, 1000))
+      std::vector<std::string> msgs;
+      while ((_sock > 0) && _msg_q.drain(msgs, 1000))
       {
-        if (msg.empty())
+        if (msgs.empty())
         {
           // No real messages for a second, so send a heartbeat message
-          msg = SAS::heartbeat_msg();
+          msgs.push_back(SAS::heartbeat_msg());
         }
 
-        int len = msg.length();
-        char* buf = (char*)msg.data();
-        while (len > 0)
+        for (std::string msg : msgs)
         {
-          int flags = 0;
-#ifdef MSG_NOSIGNAL
-          flags |= MSG_NOSIGNAL;
-#endif
-          int nsent = ::send(_sock, buf, len, flags);
-          if (nsent > 0)
+          int len = msg.length();
+          char* buf = (char*)msg.data();
+          while (len > 0)
           {
-            len -= nsent;
-            buf += nsent;
-          }
-          else if ((nsent < 0) && (errno != EINTR))
-          {
-            if ((errno == EWOULDBLOCK) || (errno == EAGAIN))
+            int flags = 0;
+  #ifdef MSG_NOSIGNAL
+            flags |= MSG_NOSIGNAL;
+  #endif
+            int nsent = ::send(_sock, buf, len, flags);
+            if (nsent > 0)
             {
-              // The send timeout has expired, so close the socket so we
-              // try to connect again (and avoid buffering data while waiting
-              // for long TCP timeouts).
-              SAS_LOG_ERROR("SAS connection to %s:%s locked up: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
+              len -= nsent;
+              buf += nsent;
             }
-            else
+            else if ((nsent < 0) && (errno != EINTR))
             {
-              // The socket has failed.
-              SAS_LOG_ERROR("SAS connection to %s:%s failed: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
+              if ((errno == EWOULDBLOCK) || (errno == EAGAIN))
+              {
+                // The send timeout has expired, so close the socket so we
+                // try to connect again (and avoid buffering data while waiting
+                // for long TCP timeouts).
+                SAS_LOG_ERROR("SAS connection to %s:%s locked up: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
+              }
+              else
+              {
+                // The socket has failed.
+                SAS_LOG_ERROR("SAS connection to %s:%s failed: %d %s", _sas_address.c_str(), SAS_PORT, errno, ::strerror(errno));
+              }
+              ::close(_sock);
+              _sock = -1;
+              break;
             }
-            ::close(_sock);
-            _sock = -1;
-            break;
           }
         }
-        msg.clear();
+        msgs.clear();
       }
 
       // Terminate the socket.

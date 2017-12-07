@@ -287,6 +287,70 @@ public:
     return !_terminated;
   };
 
+
+  /// Drain all items from the event queue, waiting for the specified timeout if
+  /// the queue is empty.
+  ///
+  /// @param timeout Maximum time to wait in milliseconds.
+  bool drain(std::vector<T>& items, int timeout)
+  {
+    pthread_mutex_lock(&_m);
+
+    if ((_q.empty()) && (timeout != 0))
+    {
+      // The queue is empty and the timeout is non-zero, so wait for
+      // something to arrive.
+      struct timespec attime;
+      if (timeout != -1)
+      {
+        clock_gettime(CLOCK_MONOTONIC, &attime);
+        attime.tv_sec += timeout / 1000;
+        attime.tv_nsec += ((timeout % 1000) * 1000000);
+        if (attime.tv_nsec >= 1000000000)
+        {
+          attime.tv_nsec -= 1000000000;
+          attime.tv_sec += 1;
+        }
+      }
+
+      ++_readers;
+
+      while ((_q.empty()) && (!_terminated))
+      {
+        // The queue is empty, so wait for something to arrive.
+        if (timeout != -1)
+        {
+          int rc = pthread_cond_timedwait(&_r_cond, &_m, &attime);
+          if (rc == ETIMEDOUT)
+          {
+            break;
+          }
+        }
+        else
+        {
+          pthread_cond_wait(&_r_cond, &_m);
+        }
+      }
+
+      --_readers;
+    }
+
+    while (!_q.empty())
+    {
+      items.push_back(_q.front());
+      _q.pop();
+    }
+
+    if (_writers > 0)
+    {
+	    pthread_cond_signal(&_w_cond);
+    }
+
+    pthread_mutex_unlock(&_m);
+
+    return !_terminated;
+  };
+
   /// Peek at the item at the front of the event queue.
   T peek() const
   {
