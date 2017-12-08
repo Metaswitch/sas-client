@@ -104,6 +104,7 @@ enum struct UniquenessScopes
   UUID_RFC4122 = 2,
   ASYNC_CFG_SUB_DN = 3,
   DIGEST_OPAQUE = 4
+  STEERING_ID = 5
 };
 
 class SAS
