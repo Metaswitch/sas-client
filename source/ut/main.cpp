@@ -366,65 +366,6 @@ void test_timestamps_use_current_time()
 }
 } // namespace MarkerTest
 
-// Analytics event tests
-namespace AnalyticsTest
-{
-
-void test_json_no_store()
-{
-  SAS::Analytics analytics(111,
-                           SAS::Analytics::Format::JSON,
-                           "Test source",
-                           "Test Friendly ID",
-                           222);
-  analytics.add_var_param("{\"JSON formated data\"}");
-  std::string bytes = analytics.to_string(false);
-
-  SasTest::Analytics expected;
-  expected.parse(bytes);
-  ASSERT_PRINT_BYTES(expected.version == 3, bytes);
-  ASSERT_PRINT_BYTES(expected.msg_type == 7, bytes); // 7 => Analytics
-  ASSERT_PRINT_BYTES(expected.trail == 111, bytes);
-  // The library sets the top bytes to 0x0F
-  ASSERT_PRINT_BYTES(expected.event_id == (0x0F000000 + 222), bytes);
-  ASSERT_PRINT_BYTES(expected.instance_id == 0, bytes); // defaults to 0
-  ASSERT_PRINT_BYTES(expected.format_type == 1, bytes); // 1 => JSON format
-  ASSERT_PRINT_BYTES(expected.store_msg == 0, bytes);
-  ASSERT_PRINT_BYTES(expected.source_type == "Test source", bytes);
-  ASSERT_PRINT_BYTES(expected.friendly_id == "Test Friendly ID", bytes);
-  ASSERT_PRINT_BYTES(expected.static_params.size() == 0, bytes);
-  ASSERT_PRINT_BYTES(expected.var_params.size() == 1, bytes);
-  ASSERT_PRINT_BYTES(expected.var_params[0] == "{\"JSON formated data\"}", bytes);
-}
-
-void test_xml_with_store()
-{
-  SAS::Analytics analytics(111,
-                           SAS::Analytics::Format::XML,
-                           "Test source",
-                           "Test Friendly ID",
-                           222,
-                           333);
-  analytics.add_var_param("<data>XML format</data>");
-  std::string bytes = analytics.to_string(true);
-
-  SasTest::Analytics expected;
-  expected.parse(bytes);
-  ASSERT_PRINT_BYTES(expected.version == 3, bytes);
-  ASSERT_PRINT_BYTES(expected.msg_type == 7, bytes); // 7 => Analytics
-  ASSERT_PRINT_BYTES(expected.trail == 111, bytes);
-  // The library sets the top bytes to 0x0F
-  ASSERT_PRINT_BYTES(expected.event_id == (0x0F000000 + 222), bytes);
-  ASSERT_PRINT_BYTES(expected.instance_id == 333, bytes);
-  ASSERT_PRINT_BYTES(expected.format_type == 2, bytes); // 2 => XML format
-  ASSERT_PRINT_BYTES(expected.store_msg == 1, bytes);
-  ASSERT_PRINT_BYTES(expected.source_type == "Test source", bytes);
-  ASSERT_PRINT_BYTES(expected.friendly_id == "Test Friendly ID", bytes);
-  ASSERT_PRINT_BYTES(expected.var_params.size() == 1, bytes);
-  ASSERT_PRINT_BYTES(expected.var_params[0] == "<data>XML format</data>", bytes);
-}
-} // namespace AnalyticsTest
-
 int main(int argc, char *argv[])
 {
   RUN_TEST(EventTest::test_empty);
@@ -449,9 +390,6 @@ int main(int argc, char *argv[])
   RUN_TEST(MarkerTest::test_no_reactivate_flag);
   RUN_TEST(MarkerTest::test_no_reactivate_not_set_for_non_correlating_marker);
   RUN_TEST(MarkerTest::test_timestamps_use_current_time);
-
-  RUN_TEST(AnalyticsTest::test_json_no_store);
-  RUN_TEST(AnalyticsTest::test_xml_with_store);
 
   if (failures == 0)
   {

@@ -230,6 +230,10 @@ public:
       return add_compressed_param(local_str, profile);
     }
 
+    inline const uint32_t* get_id() const {return &_id;}
+    inline const uint32_t* get_instance_id() const {return &_instance;}
+    inline const std::vector<uint32_t>* get_static_params() const {return &_static_params;}
+    inline const std::vector<std::string>* get_var_params() const {return &_var_params;}
     friend class SAS;
 
   protected:
@@ -278,42 +282,6 @@ public:
     bool _timestamp_set;
   };
 
-  class Analytics : public Message
-  {
-  public:
-
-    enum Format
-    {
-      JSON = 1,
-      XML = 2
-    };
-
-    inline Analytics(TrailId trail,
-                     Format format,
-                     const std::string& source_type,
-                     const std::string& friendly_id,
-                     uint32_t event_id,
-                     uint32_t instance=0u) :
-      Message(trail,
-              ((event_id & 0x00FFFFFF) | 0x0F000000),
-              instance),
-      _format(format),
-      _source_type(source_type),
-      _friendly_id(friendly_id)
-    {
-    }
-
-    Timestamp get_timestamp() const;
-    std::string to_string(bool sas_store) const;
-
-  private:
-    size_t variable_header_buf_len() const;
-
-    Format _format;
-    std::string _source_type;
-    std::string _friendly_id;
-  };
-
   class Marker : public Message
   {
   public:
@@ -343,6 +311,7 @@ public:
     LOG_LEVEL_DEBUG = 5,
   };
 
+  // @@ TODO Change this up!
   typedef void (sas_log_callback_t)(log_level_t level,
                                     const char *module,
                                     int line_number,
@@ -360,35 +329,85 @@ public:
   typedef int (create_socket_callback_t)(const char* hostname,
                                          const char* port);
 
-
-  // A simple implementation of sas_log_callback_t that logs messages to stdout.
-  static void log_to_stdout(log_level_t level,
-                            const char *module,
-                            int line_number,
-                            const char *fmt,
-                            ...);
-
-  // A simple implementation of sas_log_callback_t that discards all logs.
-  static void discard_logs(log_level_t level,
-                           const char *module,
-                           int line_number,
-                           const char *fmt,
-                           ...);
-
+  /// Initialises the SAS client library.  This call must
+  /// complete before any other functions on the API can be called.
+  ///
+  /// @param  system_name
+  ///     The unique name for the system, eg: hostname
+  /// @param  system_type
+  ///     The type of this system
+  ///
+  /// @param  resource_identifier
+  ///     The version of the resource bundle
+  /// @param  sas_address
+  ///     Either takes:
+  ///         - A single ipv4 address (deprecated)
+  ///         - A JSON string of ipv4 addresses of the form.
+  ///             "[{"ip": "ip_address_1"}, ...]""
+  /// @param  log_callback
+  ///     Optional Logging callback
+  /// @param  socket_callback
+  ///     Optional socket callback
+  ///
+  /// @returns
+  ///     SAS_INIT_RC_OK    on success
+  ///     SAS_INIT_RC_ERR   on failure
+  ///
   static int init(std::string system_name,
                   const std::string& system_type,
                   const std::string& resource_identifier,
                   const std::string& sas_address,
                   sas_log_callback_t* log_callback,
                   create_socket_callback_t* socket_callback = NULL);
+
+  /// Terminates the SAS client library, passing in a timeout
+  /// of 5 seconds to wait for pending messages to be sent.
+  ///
+  /// No calls may be made to this API after this call has been complete.
+  /// It is safe to call this function more than once - no action is taken on
+  /// subsequent calls.
+  ///
   static void term();
+
+  /// Request a new trail ID.
+  ///
+  /// @param instance
+  ///     Deprecated and un-used, but remains present for back-compatibility
+  ///
   static TrailId new_trail(uint32_t instance=0u);
+
+  /// Send a SAS event.
+  /// The contents of the supplied Event is unchanged, and the ownership
+  /// remains with the calling code
+  ///
+  /// @param event
+  ///    The pre-constructed Event to send
   static void report_event(const Event& event);
-  static void report_analytics(const Analytics& analytics,
-                               bool sas_store = false);
+
+  /// Send a SAS marker.
+  /// The contents of the supplied marker is unchanged, and the ownership
+  /// remains with the calling code
+  ///
+  /// @param marker
+  ///    The pre-constructed Marker to send
+  /// @param scope
+  ///    The association scope.  One of: NONE, BRANCH, TRACE
+  /// @param reactivate
+  ///    Deprecated and un-used, but remains present for back-compatibility
+  ///
   static void report_marker(const Marker& marker,
                             Marker::Scope scope = Marker::Scope::None,
                             bool reactivate = true);
+
+  /// Associate the two trails with the given IDs.
+  ///
+  /// @param trail_a
+  ///     The first trail
+  /// @param trail_b
+  ///     The second trail
+  /// @param scope
+  ///     The association scope.  One of: NONE, BRANCH, TRACE
+  ///
   static void associate_trails(TrailId trail_a,
                                TrailId trail_b,
                                Marker::Scope scope = Marker::Scope::Branch);
