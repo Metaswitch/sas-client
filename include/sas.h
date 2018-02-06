@@ -106,6 +106,18 @@ enum struct UniquenessScopes
   DIGEST_OPAQUE = 4
 };
 
+// The logging infrastructure uses a different logging enum to the client,
+// which is declared here so the client has knowledge of it.
+typedef enum sasclient_log_level {
+  SASCLIENT_LOG_CRITICAL=1,
+  SASCLIENT_LOG_ERROR,
+  SASCLIENT_LOG_WARNING,
+  SASCLIENT_LOG_INFO,
+  SASCLIENT_LOG_DEBUG,
+  SASCLIENT_LOG_TRACE,
+  SASCLIENT_LOG_STATS=12
+} sasclient_log_level_t;
+
 class SAS
 {
 public:
@@ -311,12 +323,13 @@ public:
     LOG_LEVEL_DEBUG = 5,
   };
 
-  // @@ TODO Change this up!
-  typedef void (sas_log_callback_t)(log_level_t level,
-                                    const char *module,
-                                    int line_number,
-                                    const char *fmt,
-                                    ...);
+  typedef void (sas_log_callback_t)(sasclient_log_level_t level,
+                                         int32_t log_id_len,
+                                         unsigned char* log_id,
+                                         int32_t sas_ip_len,
+                                         unsigned char* sas_ip,
+                                         int32_t msg_len,
+                                         unsigned char* msg);
 
   // Optional callback, to create the SAS connection socket in some other way than the 'socket' call.
   //
@@ -415,6 +428,18 @@ public:
   static Timestamp get_current_timestamp();
 
   static sas_log_callback_t* _log_callback;
+
+  static void sasclient_log_callback(log_level_t level,
+                                     const char *module,
+                                     int line_number,
+                                     const char *fmt,
+                                     ...);
+
+  static void _sasclient_log_callback(log_level_t level,
+                                      const char *module,
+                                      int line_number,
+                                      const char *fmt,
+                                      va_list args);
 
 private:
 

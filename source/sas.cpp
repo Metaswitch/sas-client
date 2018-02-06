@@ -47,6 +47,8 @@
 #include "sas_eventq.h"
 #include "sas_internal.h"
 
+#define MAX_LOGLINE 8192
+
 const char* SAS_PORT = "6761";
 
 // MIN/MAX string lengths for init parameters.
@@ -698,4 +700,63 @@ std::string SAS::Marker::to_string(Marker::Scope scope, bool reactivate) const
 SAS::Timestamp SAS::Marker::get_timestamp() const
 {
   return SAS::get_current_timestamp();
+}
+
+
+void SAS::sasclient_log_callback(log_level_t level,
+                                const char *module,
+                                int line_number,
+                                const char *fmt,
+                                ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  _sasclient_log_callback(level, module, line_number, fmt, args);
+  va_end(args);
+}
+
+
+void SAS::_sasclient_log_callback(log_level_t level,
+                                  const char *module,
+                                  int line_number,
+                                  const char *fmt,
+                                  va_list args)
+{
+  const char* log_level[] = {"Error", "Warning", "Status", "Info", "Verbose", "Debug"};
+
+  sasclient_log_level_t sc_level = (sasclient_log_level_t)(level + 1);
+
+  char logline[MAX_LOGLINE];
+
+  int written = 0;
+
+  if (line_number)
+  {
+    written = snprintf(logline, MAX_LOGLINE - 2, "%s %s:%d: ", log_level[level], module, line_number);
+  }
+  else
+  {
+    written = snprintf(logline, MAX_LOGLINE - 2, "%s %s: ", log_level[level], module);
+  }
+
+  // snprintf and vsnprintf return the bytes that would have been
+  // written if their second argument was large enough, so we need to
+  // reduce the size of written to compensate if it is too large.
+  written = std::min(written, MAX_LOGLINE - 2);
+
+  int bytes_available = MAX_LOGLINE - written - 2;
+  written += vsnprintf(logline + written, bytes_available, fmt, args);
+
+  if (written > (MAX_LOGLINE - 2))
+  {
+    written = MAX_LOGLINE - 2;
+  }
+
+  _log_callback(sc_level,
+                0,
+                NULL,
+                0,
+                NULL,
+                written,
+                (unsigned char*)logline);
 }
