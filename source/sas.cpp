@@ -750,11 +750,34 @@ void SAS::_sasclient_log_callback(log_level_t level,
     written = MAX_LOGLINE - 2;
   }
 
-  // Convert log_level_t to sascient_log_level_t, which is the type expected by the common
+  // Convert log_level_t to sasclient_log_level_t, which is the type expected by the common
   // logging function.
-  sasclient_log_level_t sc_level = (sasclient_log_level_t)(level + 1);
+  sasclient_log_level_t sas_level;
+  switch (level) {
+    case LOG_LEVEL_ERROR:
+      sas_level = SASCLIENT_LOG_ERROR;
+      break;
+    case LOG_LEVEL_WARNING:
+      sas_level = SASCLIENT_LOG_WARNING;
+      break;
+    case LOG_LEVEL_STATUS:
+      sas_level = SASCLIENT_LOG_INFO;
+      break;
+    case LOG_LEVEL_INFO:
+      sas_level = SASCLIENT_LOG_INFO;
+      break;
+    case LOG_LEVEL_VERBOSE:
+      sas_level = SASCLIENT_LOG_DEBUG;
+      break;
+    case LOG_LEVEL_DEBUG:
+      sas_level = SASCLIENT_LOG_DEBUG;
+      break;
+    default:
+      SAS_LOG_WARNING("Unknown SAS log level %d, treating as error level", level);
+      sas_level = SASCLIENT_LOG_ERROR;
+    }
 
-  _log_callback(sc_level,
+  _log_callback(sas_level,
                 0,
                 NULL,
                 0,

@@ -324,12 +324,12 @@ public:
   };
 
   typedef void (sas_log_callback_t)(sasclient_log_level_t level,
-                                         int32_t log_id_len,
-                                         unsigned char* log_id,
-                                         int32_t sas_ip_len,
-                                         unsigned char* sas_ip,
-                                         int32_t msg_len,
-                                         unsigned char* msg);
+                                    int32_t log_id_len,
+                                    unsigned char* log_id,
+                                    int32_t sas_ip_len,
+                                    unsigned char* sas_ip,
+                                    int32_t msg_len,
+                                    unsigned char* msg);
 
   // Optional callback, to create the SAS connection socket in some other way than the 'socket' call.
   //
@@ -441,8 +441,7 @@ public:
                                       const char *fmt,
                                       va_list args);
 
-private:
-
+  private:
   static void write_hdr(std::string& s,
                         uint16_t msg_length,
                         uint8_t msg_type,
