@@ -716,6 +716,8 @@ void SAS::sasclient_log_callback(log_level_t level,
 }
 
 
+// Write the internally raised log to a char array, then pass
+// this to the common logging callback to log.
 void SAS::_sasclient_log_callback(log_level_t level,
                                   const char *module,
                                   int line_number,
@@ -723,11 +725,7 @@ void SAS::_sasclient_log_callback(log_level_t level,
                                   va_list args)
 {
   const char* log_level[] = {"Error", "Warning", "Status", "Info", "Verbose", "Debug"};
-
-  sasclient_log_level_t sc_level = (sasclient_log_level_t)(level + 1);
-
   char logline[MAX_LOGLINE];
-
   int written = 0;
 
   if (line_number)
@@ -751,6 +749,10 @@ void SAS::_sasclient_log_callback(log_level_t level,
   {
     written = MAX_LOGLINE - 2;
   }
+
+  // Convert log_level_t to sascient_log_level_t, which is the type expected by the common
+  // logging function.
+  sasclient_log_level_t sc_level = (sasclient_log_level_t)(level + 1);
 
   _log_callback(sc_level,
                 0,
