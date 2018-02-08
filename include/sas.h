@@ -78,8 +78,8 @@ static const int MARKER_ID_ICC_BRANCH_INDEX     = 0x01000010;
 static const int MARKER_ID_PRIMARY_DEVICE       = 0x01000008;
 
 static const int MARKER_ID_MVD_MOVABLE_BLOCK    = 0x01000015;
-static const int MARKED_ID_GENERIC_CORRELATOR   = 0x01000016;
-static const int MARKED_ID_FLUSH                = 0x01000017;
+static const int MARKER_ID_GENERIC_CORRELATOR   = 0x01000016;
+static const int MARKER_ID_FLUSH                = 0x01000017;
 
 static const int MARKER_ID_SIP_REGISTRATION     = 0x010B0004;
 static const int MARKER_ID_SIP_ALL_REGISTER     = 0x010B0005;
