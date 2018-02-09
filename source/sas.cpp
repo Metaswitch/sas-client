@@ -420,7 +420,7 @@ bool SAS::Connection::connect_init()
     return false;
   }
 
-  SAS_LOG_DEBUG("Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
+  SAS_LOG_DEBUG("Check Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
   set_send_timeout(_sock, SEND_TIMEOUT);
 
   // Send an init message to SAS.
