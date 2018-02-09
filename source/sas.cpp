@@ -734,7 +734,7 @@ void SAS::_sasclient_log_callback(log_level_t level,
 
   if (line_number)
   {
-    written = snprintf(logline, MAX_LOGLINE - 2, "%s %s:%d: ", log_level[level], module, line_number);
+    written = snprintf(logline, MAX_LOGLINE - 2, "CHECK %s %s:%d: ", log_level[level], module, line_number);
   }
   else
   {
