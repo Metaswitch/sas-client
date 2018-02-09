@@ -353,10 +353,7 @@ public:
   /// @param  resource_identifier
   ///     The version of the resource bundle
   /// @param  sas_address
-  ///     Either takes:
-  ///         - A single ipv4 address (deprecated)
-  ///         - A JSON string of ipv4 addresses of the form.
-  ///             "[{"ip": "ip_address_1"}, ...]""
+  ///     Takes a single ipv4 address
   /// @param  log_callback
   ///     Optional Logging callback
   /// @param  socket_callback
@@ -373,19 +370,15 @@ public:
                   sas_log_callback_t* log_callback,
                   create_socket_callback_t* socket_callback = NULL);
 
-  /// Terminates the SAS client library, passing in a timeout
-  /// of 5 seconds to wait for pending messages to be sent.
-  ///
-  /// No calls may be made to this API after this call has been complete.
-  /// It is safe to call this function more than once - no action is taken on
-  /// subsequent calls.
+  /// Terminates the connection to the SAS Client Library.
   ///
   static void term();
 
   /// Request a new trail ID.
   ///
   /// @param instance
-  ///     Deprecated and un-used, but remains present for back-compatibility
+  ///    Can be used to identify a code location where a particular event was
+  ///    reported.
   ///
   static TrailId new_trail(uint32_t instance=0u);
 
@@ -406,7 +399,8 @@ public:
   /// @param scope
   ///    The association scope.  One of: NONE, BRANCH, TRACE
   /// @param reactivate
-  ///    Deprecated and un-used, but remains present for back-compatibility
+  ///    Determines whether we set the association flags byte to 0x01 if true
+  ///    or 0x02 if false (or 0 f the scope was none).
   ///
   static void report_marker(const Marker& marker,
                             Marker::Scope scope = Marker::Scope::None,
