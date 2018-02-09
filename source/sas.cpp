@@ -728,6 +728,10 @@ void SAS::_sasclient_log_callback(log_level_t level,
   char logline[MAX_LOGLINE];
   int written = 0;
 
+  // Strip the directory from the file location.
+  const char* mod = strrchr(module, '/');
+  module = (mod != NULL) ? mod + 1 : module;
+
   if (line_number)
   {
     written = snprintf(logline, MAX_LOGLINE - 2, "%s %s:%d: ", log_level[level], module, line_number);
