@@ -242,10 +242,6 @@ public:
       return add_compressed_param(local_str, profile);
     }
 
-    inline const uint32_t* get_id() const {return &_id;}
-    inline const uint32_t* get_instance_id() const {return &_instance;}
-    inline const std::vector<uint32_t>* get_static_params() const {return &_static_params;}
-    inline const std::vector<std::string>* get_var_params() const {return &_var_params;}
     friend class SAS;
 
   protected:
@@ -423,6 +419,9 @@ public:
 
   static sas_log_callback_t* _log_callback;
 
+  /// Converts the format of a log raised within the SAS-Client to that expected by
+  /// the common log callback, and calls the common log callback with the converted
+  /// arguments.
   static void sasclient_log_callback(log_level_t level,
                                      const char *module,
                                      int line_number,
