@@ -420,6 +420,7 @@ public:
   ///
   /// @param event
   ///    The pre-constructed Event to send
+  ///
   static void report_event(const Event& event);
 
   /// Send a SAS analytics message.
@@ -431,6 +432,7 @@ public:
   /// @param sas_store
   ///    Specifies whether the message should be stored in the SAS database (as
   ///    an event) in addition to being forwarded to the analytics server.
+  ///
   static void report_analytics(const Analytics& analytics,
                                bool sas_store = false);
 
