@@ -290,6 +290,42 @@ public:
     bool _timestamp_set;
   };
 
+  class Analytics : public Message
+  {
+  public:
+
+    enum Format
+    {
+      JSON = 1,
+      XML = 2
+    };
+
+    inline Analytics(TrailId trail,
+                     Format format,
+                     const std::string& source_type,
+                     const std::string& friendly_id,
+                     uint32_t event_id,
+                     uint32_t instance=0u) :
+      Message(trail,
+              ((event_id & 0x00FFFFFF) | 0x0F000000),
+              instance),
+      _format(format),
+      _source_type(source_type),
+      _friendly_id(friendly_id)
+    {
+    }
+
+    Timestamp get_timestamp() const;
+    std::string to_string(bool sas_store) const;
+
+  private:
+    size_t variable_header_buf_len() const;
+
+    Format _format;
+    std::string _source_type;
+    std::string _friendly_id;
+  };
+
   class Marker : public Message
   {
   public:
@@ -379,15 +415,27 @@ public:
   static TrailId new_trail(uint32_t instance=0u);
 
   /// Send a SAS event.
-  /// The contents of the supplied Event is unchanged, and the ownership
+  /// The contents of the supplied Event are unchanged, and the ownership
   /// remains with the calling code
   ///
   /// @param event
   ///    The pre-constructed Event to send
   static void report_event(const Event& event);
 
+  /// Send a SAS analytics message.
+  /// The contents of the supplied analytics message are unchanged, and the ownership
+  /// remains with the calling code
+  ///
+  /// @param analytics
+  ///    The pre-constructed analytics message to send
+  /// @param sas_store
+  ///    Specifies whether the message should be stored in the SAS database (as
+  ///    an event) in addition to being forwarded to the analytics server.
+  static void report_analytics(const Analytics& analytics,
+                               bool sas_store = false);
+
   /// Send a SAS marker.
-  /// The contents of the supplied marker is unchanged, and the ownership
+  /// The contents of the supplied marker are unchanged, and the ownership
   /// remains with the calling code
   ///
   /// @param marker

@@ -420,7 +420,7 @@ bool SAS::Connection::connect_init()
     return false;
   }
 
-  SAS_LOG_DEBUG("Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
+  SAS_LOG_DEBUG("Check Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
   set_send_timeout(_sock, SEND_TIMEOUT);
 
   // Send an init message to SAS.
@@ -488,6 +488,15 @@ void SAS::report_event(const Event& event)
   if (_connection)
   {
     _connection->send_msg(event.to_string());
+  }
+}
+
+
+void SAS::report_analytics(const Analytics& analytics, bool sas_store)
+{
+  if (_connection)
+  {
+    _connection->send_msg(analytics.to_string(sas_store));
   }
 }
 
@@ -647,6 +656,52 @@ std::string SAS::Event::to_string() const
   return std::move(s);
 }
 
+std::string SAS::Analytics::to_string(bool sas_store) const
+{
+  size_t len = ANALYTICS_STATIC_HDR_SIZE + variable_header_buf_len() \
+                  + params_buf_len();
+  std::string s;
+  s.reserve(len);
+
+  write_hdr(s, len, SAS_MSG_ANALYTICS, get_timestamp());
+  write_trail(s, _trail);
+  write_int32(s, _id);
+  write_int32(s, _instance);
+  write_int8(s, (uint8_t)_format);
+
+  // Set the 'store message' bit if the message should be stored by SAS as well
+  // as forwarded to the Analytics server.
+  write_int8(s, (uint8_t)sas_store);
+
+  write_int16(s, (uint16_t)_source_type.length());
+  write_data(s, _source_type.length(), _source_type.data());
+  write_int16(s, (uint16_t)_friendly_id.length());
+  write_data(s, _friendly_id.length(), _friendly_id.data());
+  write_params(s);
+
+  return std::move(s);
+}
+
+
+// Get the timestamp to be used on the message.
+SAS::Timestamp SAS::Analytics::get_timestamp() const
+{
+  return SAS::get_current_timestamp();
+}
+
+
+// Return the length of the source_type and friendly_id fields (including
+// length fields).
+// These consist of:
+//   [ 2 bytes ] Source type length
+//   [ n bytes ] Source type
+//   [ 2 bytes ] Friendly ID length
+//   [ n bytes ] Friendly ID
+size_t SAS::Analytics::variable_header_buf_len() const
+{
+  return 2 + _source_type.length() + 2 + _friendly_id.length();
+}
+
 
 // Get the timestamp to be used on the message.
 SAS::Timestamp SAS::Event::get_timestamp() const
@@ -734,7 +789,7 @@ void SAS::_sasclient_log_callback(log_level_t level,
 
   if (line_number)
   {
-    written = snprintf(logline, MAX_LOGLINE - 2, "%s %s:%d: ", log_level[level], module, line_number);
+    written = snprintf(logline, MAX_LOGLINE - 2, "CHECK %s %s:%d: ", log_level[level], module, line_number);
   }
   else
   {
