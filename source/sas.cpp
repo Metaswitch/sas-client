@@ -47,8 +47,6 @@
 #include "sas_eventq.h"
 #include "sas_internal.h"
 
-#define MAX_LOGLINE 8192
-
 const char* SAS_PORT = "6761";
 
 // MIN/MAX string lengths for init parameters.
@@ -768,26 +766,30 @@ void SAS::sasclient_log_callback(sas_log_level_t level,
 {
   va_list args;
   va_start(args, fmt);
-  char logline[MAX_LOGLINE];
+
+  // Array comfortably larger than any expected log. The common logging infrastrucutre
+  // outputs a warning if the resulting log to be logged is truncated due to being too long.
+  int array_size = 10000;
+  char logline[array_size];
   int written = 0;
 
   // Strip the directory from the file location.
   const char* mod = strrchr(module, '/');
   module = (mod != NULL) ? mod + 1 : module;
 
-  written = snprintf(logline, MAX_LOGLINE - 2, "%s:%d: ", module, line_number);
+  written = snprintf(logline, array_size, "%s:%d: ", module, line_number);
 
   // snprintf and vsnprintf return the bytes that would have been
   // written if their second argument was large enough, so we need to
   // reduce the size of written to compensate if it is too large.
-  written = std::min(written, MAX_LOGLINE - 2);
+  written = std::min(written, array_size);
 
-  int bytes_available = MAX_LOGLINE - written - 2;
+  int bytes_available = array_size - written;
   written += vsnprintf(logline + written, bytes_available, fmt, args);
 
   // Update the value of written to the final value so _log_callback know how large
   // logline is.
-  written = std::min(written, MAX_LOGLINE - 2);
+  written = std::min(written, array_size);
 
   _log_callback(level,
                 0,
