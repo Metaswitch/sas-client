@@ -106,18 +106,6 @@ enum struct UniquenessScopes
   DIGEST_OPAQUE = 4
 };
 
-// The logging infrastructure uses a different logging enum to the client,
-// which is declared here so the client has knowledge of it.
-typedef enum sasclient_log_level {
-  SASCLIENT_LOG_CRITICAL=1,
-  SASCLIENT_LOG_ERROR,
-  SASCLIENT_LOG_WARNING,
-  SASCLIENT_LOG_INFO,
-  SASCLIENT_LOG_DEBUG,
-  SASCLIENT_LOG_TRACE,
-  SASCLIENT_LOG_STATS=12
-} sasclient_log_level_t;
-
 class SAS
 {
 public:
@@ -346,16 +334,18 @@ public:
     std::string to_string(Scope scope, bool reactivate) const;
   };
 
-  enum log_level_t {
-    LOG_LEVEL_ERROR = 0,
-    LOG_LEVEL_WARNING = 1,
-    LOG_LEVEL_STATUS = 2,
-    LOG_LEVEL_INFO = 3,
-    LOG_LEVEL_VERBOSE = 4,
-    LOG_LEVEL_DEBUG = 5,
+  enum sas_log_level_t {
+    SASCLIENT_LOG_CRITICAL=1,
+    SASCLIENT_LOG_ERROR,
+    SASCLIENT_LOG_WARNING,
+    SASCLIENT_LOG_INFO,
+    SASCLIENT_LOG_DEBUG,
+    SASCLIENT_LOG_TRACE,
+    SASCLIENT_LOG_STATS=12
   };
 
-  typedef void (sas_log_callback_t)(sasclient_log_level_t level,
+
+  typedef void (sas_log_callback_t)(sas_log_level_t level,
                                     int32_t log_id_len,
                                     unsigned char* log_id,
                                     int32_t sas_ip_len,
@@ -385,7 +375,7 @@ public:
   /// @param  resource_identifier
   ///     The version of the resource bundle
   /// @param  sas_address
-  ///     Takes a single ipv4 address
+  ///     Takes a single ipv4 address or domain name.
   /// @param  log_callback
   ///     Optional Logging callback
   /// @param  socket_callback
@@ -409,8 +399,7 @@ public:
   /// Request a new trail ID.
   ///
   /// @param instance
-  ///    Can be used to identify a code location where a particular event was
-  ///    reported.
+  ///    Can be used to identify a code location where a particular trail was created.
   ///
   static TrailId new_trail(uint32_t instance=0u);
 
@@ -445,8 +434,10 @@ public:
   /// @param scope
   ///    The association scope.  One of: NONE, BRANCH, TRACE
   /// @param reactivate
-  ///    Determines whether we set the association flags byte to 0x01 if true
-  ///    or 0x02 if false (or 0 f the scope was none).
+  ///    Sets the association flag if true.
+  ///    If two markers are reported with this association flag set, with the same
+  ///    marker-specific data, on different trails, within 60s of one another, then this
+  ///    will cause the two trails to become associated.
   ///
   static void report_marker(const Marker& marker,
                             Marker::Scope scope = Marker::Scope::None,
@@ -455,7 +446,7 @@ public:
   /// Associate the two trails with the given IDs.
   ///
   /// @param trail_a
-  ///     The first trail
+  ///      The first trail
   /// @param trail_b
   ///     The second trail
   /// @param scope
@@ -469,20 +460,16 @@ public:
 
   static sas_log_callback_t* _log_callback;
 
+
+
   /// Converts the format of a log raised within the SAS-Client to that expected by
   /// the common log callback, and calls the common log callback with the converted
   /// arguments.
-  static void sasclient_log_callback(log_level_t level,
+  static void sasclient_log_callback(sas_log_level_t level,
                                      const char *module,
                                      int line_number,
                                      const char *fmt,
                                      ...);
-
-  static void _sasclient_log_callback(log_level_t level,
-                                      const char *module,
-                                      int line_number,
-                                      const char *fmt,
-                                      va_list args);
 
   private:
   static void write_hdr(std::string& s,

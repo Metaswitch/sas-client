@@ -337,7 +337,7 @@ int SAS::Connection::get_local_sock(const char* sas_address, const char* sas_por
   int rc;
   struct addrinfo hints, *addrs;
 
-  SAS_LOG_STATUS("Attempting to connect to SAS %s", sas_address);
+  SAS_LOG_INFO("Attempting to connect to SAS %s", sas_address);
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET;
@@ -420,7 +420,7 @@ bool SAS::Connection::connect_init()
     return false;
   }
 
-  SAS_LOG_DEBUG("Check Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
+  SAS_LOG_DEBUG("Connected SAS socket to %s:%s", _sas_address.c_str(), SAS_PORT);
   set_send_timeout(_sock, SEND_TIMEOUT);
 
   // Send an init message to SAS.
@@ -464,7 +464,7 @@ bool SAS::Connection::connect_init()
     return false;
   }
 
-  SAS_LOG_STATUS("Connected to SAS %s:%s", _sas_address.c_str(), SAS_PORT);
+  SAS_LOG_INFO("Connected to SAS %s:%s", _sas_address.c_str(), SAS_PORT);
 
   return true;
 }
@@ -758,28 +758,16 @@ SAS::Timestamp SAS::Marker::get_timestamp() const
 }
 
 
-void SAS::sasclient_log_callback(log_level_t level,
-                                const char *module,
-                                int line_number,
-                                const char *fmt,
-                                ...)
+// Write the internally raised log to a char array, then pass
+// this to the common logging callback to log.
+void SAS::sasclient_log_callback(sas_log_level_t level,
+                                 const char *module,
+                                 int line_number,
+                                 const char *fmt,
+                                 ...)
 {
   va_list args;
   va_start(args, fmt);
-  _sasclient_log_callback(level, module, line_number, fmt, args);
-  va_end(args);
-}
-
-
-// Write the internally raised log to a char array, then pass
-// this to the common logging callback to log.
-void SAS::_sasclient_log_callback(log_level_t level,
-                                  const char *module,
-                                  int line_number,
-                                  const char *fmt,
-                                  va_list args)
-{
-  const char* log_level[] = {"Error", "Warning", "Status", "Info", "Verbose", "Debug"};
   char logline[MAX_LOGLINE];
   int written = 0;
 
@@ -787,14 +775,7 @@ void SAS::_sasclient_log_callback(log_level_t level,
   const char* mod = strrchr(module, '/');
   module = (mod != NULL) ? mod + 1 : module;
 
-  if (line_number)
-  {
-    written = snprintf(logline, MAX_LOGLINE - 2, "CHECK %s %s:%d: ", log_level[level], module, line_number);
-  }
-  else
-  {
-    written = snprintf(logline, MAX_LOGLINE - 2, "%s %s: ", log_level[level], module);
-  }
+  written = snprintf(logline, MAX_LOGLINE - 2, "%s:%d: ", module, line_number);
 
   // snprintf and vsnprintf return the bytes that would have been
   // written if their second argument was large enough, so we need to
@@ -804,43 +785,16 @@ void SAS::_sasclient_log_callback(log_level_t level,
   int bytes_available = MAX_LOGLINE - written - 2;
   written += vsnprintf(logline + written, bytes_available, fmt, args);
 
-  if (written > (MAX_LOGLINE - 2))
-  {
-    written = MAX_LOGLINE - 2;
-  }
+  // Update the value of written to the final value so _log_callback know how large
+  // logline is.
+  written = std::min(written, MAX_LOGLINE - 2);
 
-  // Convert log_level_t to sasclient_log_level_t, which is the type expected by the common
-  // logging function.
-  sasclient_log_level_t sas_level;
-  switch (level) {
-    case LOG_LEVEL_ERROR:
-      sas_level = SASCLIENT_LOG_ERROR;
-      break;
-    case LOG_LEVEL_WARNING:
-      sas_level = SASCLIENT_LOG_WARNING;
-      break;
-    case LOG_LEVEL_STATUS:
-      sas_level = SASCLIENT_LOG_INFO;
-      break;
-    case LOG_LEVEL_INFO:
-      sas_level = SASCLIENT_LOG_INFO;
-      break;
-    case LOG_LEVEL_VERBOSE:
-      sas_level = SASCLIENT_LOG_DEBUG;
-      break;
-    case LOG_LEVEL_DEBUG:
-      sas_level = SASCLIENT_LOG_DEBUG;
-      break;
-    default:
-      SAS_LOG_WARNING("Unknown SAS log level %d, treating as error level", level);
-      sas_level = SASCLIENT_LOG_ERROR;
-    }
-
-  _log_callback(sas_level,
+  _log_callback(level,
                 0,
                 NULL,
                 0,
                 NULL,
                 written,
                 (unsigned char*)logline);
+  va_end(args);
 }
