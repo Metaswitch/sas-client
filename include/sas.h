@@ -446,7 +446,7 @@ public:
   /// Associate the two trails with the given IDs.
   ///
   /// @param trail_a
-  ///      The first trail
+  ///     The first trail
   /// @param trail_b
   ///     The second trail
   /// @param scope
