@@ -264,6 +264,9 @@ LZ4Compressor::~LZ4Compressor()
     LZ4_freeStream(saved_stream_iterator->second.first);
     free(saved_stream_iterator->second.second);
   }
+
+  // Free the buffer.
+  free(_buffer); _buffer = NULL; _buffer_len = 0;
 }
 
 /// Compresses the specified string using the dictionary from the profile (if non-empty).
