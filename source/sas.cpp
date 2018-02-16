@@ -335,7 +335,7 @@ int SAS::Connection::get_local_sock(const char* sas_address, const char* sas_por
   int rc;
   struct addrinfo hints, *addrs;
 
-  SAS_LOG_STATUS("Attempting to connect to SAS %s", sas_address);
+  SAS_LOG_INFO("Attempting to connect to SAS %s", sas_address);
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET;
@@ -462,7 +462,7 @@ bool SAS::Connection::connect_init()
     return false;
   }
 
-  SAS_LOG_STATUS("Connected to SAS %s:%s", _sas_address.c_str(), SAS_PORT);
+  SAS_LOG_INFO("Connected to SAS %s:%s", _sas_address.c_str(), SAS_PORT);
 
   return true;
 }
@@ -488,6 +488,7 @@ void SAS::report_event(const Event& event)
     _connection->send_msg(event.to_string());
   }
 }
+
 
 void SAS::report_analytics(const Analytics& analytics, bool sas_store)
 {
@@ -653,7 +654,6 @@ std::string SAS::Event::to_string() const
   return std::move(s);
 }
 
-
 std::string SAS::Analytics::to_string(bool sas_store) const
 {
   size_t len = ANALYTICS_STATIC_HDR_SIZE + variable_header_buf_len() \
@@ -756,40 +756,47 @@ SAS::Timestamp SAS::Marker::get_timestamp() const
 }
 
 
-void SAS::log_to_stdout(log_level_t level,
-                        const char *module,
-                        int line_number,
-                        const char *fmt,
-                        ...)
+// Write the internally raised log to a char array, then pass
+// this to the common logging callback to log.
+void SAS::sasclient_log_callback(sas_log_level_t level,
+                                 const char *module,
+                                 int line_number,
+                                 const char *fmt,
+                                 ...)
 {
   va_list args;
-  const char* level_str;
-
   va_start(args, fmt);
 
-  switch (level) {
-    case LOG_LEVEL_ERROR:   level_str = "ERROR"; break;
-    case LOG_LEVEL_WARNING: level_str = "WARNING"; break;
-    case LOG_LEVEL_STATUS:  level_str = "STATUS"; break;
-    case LOG_LEVEL_INFO:    level_str = "INFO"; break;
-    case LOG_LEVEL_VERBOSE: level_str = "VERBOSE"; break;
-    case LOG_LEVEL_DEBUG:   level_str = "DEBUG"; break;
-    default:                level_str = "UNKNOWN"; break;
-  }
+  // Array comfortably larger than any expected log. The common logging infrastrucutre
+  // outputs a warning if the resulting log to be logged is truncated due to being too long.
+  int array_size = 10000;
+  char logline[array_size];
+  int written = 0;
 
-  printf("%s %s:%d: ", level_str, module, line_number);
-  vprintf(fmt, args);
-  printf("\n");
-  fflush(stdout);
+  // Strip the directory from the file location.
+  const char* mod = strrchr(module, '/');
+  module = (mod != NULL) ? mod + 1 : module;
 
+  written = snprintf(logline, array_size, "%s:%d: ", module, line_number);
+
+  // snprintf and vsnprintf return the bytes that would have been
+  // written if their second argument was large enough, so we need to
+  // reduce the size of written to compensate if it is too large.
+  written = std::min(written, array_size);
+
+  int bytes_available = array_size - written;
+  written += vsnprintf(logline + written, bytes_available, fmt, args);
+
+  // Update the value of written to the final value so _log_callback know how large
+  // logline is.
+  written = std::min(written, array_size);
+
+  _log_callback(level,
+                0,
+                NULL,
+                0,
+                NULL,
+                written,
+                (unsigned char*)logline);
   va_end(args);
-}
-
-
-void SAS::discard_logs(log_level_t level,
-                       const char *module,
-                       int line_number,
-                       const char *fmt,
-                       ...)
-{
 }

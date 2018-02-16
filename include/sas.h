@@ -334,20 +334,24 @@ public:
     std::string to_string(Scope scope, bool reactivate) const;
   };
 
-  enum log_level_t {
-    LOG_LEVEL_ERROR = 0,
-    LOG_LEVEL_WARNING = 1,
-    LOG_LEVEL_STATUS = 2,
-    LOG_LEVEL_INFO = 3,
-    LOG_LEVEL_VERBOSE = 4,
-    LOG_LEVEL_DEBUG = 5,
+  enum sas_log_level_t {
+    SASCLIENT_LOG_CRITICAL=1,
+    SASCLIENT_LOG_ERROR,
+    SASCLIENT_LOG_WARNING,
+    SASCLIENT_LOG_INFO,
+    SASCLIENT_LOG_DEBUG,
+    SASCLIENT_LOG_TRACE,
+    SASCLIENT_LOG_STATS=12
   };
 
-  typedef void (sas_log_callback_t)(log_level_t level,
-                                    const char *module,
-                                    int line_number,
-                                    const char *fmt,
-                                    ...);
+
+  typedef void (sas_log_callback_t)(sas_log_level_t level,
+                                    int32_t log_id_len,
+                                    unsigned char* log_id,
+                                    int32_t sas_ip_len,
+                                    unsigned char* sas_ip,
+                                    int32_t msg_len,
+                                    unsigned char* msg);
 
   // Optional callback, to create the SAS connection socket in some other way than the 'socket' call.
   //
@@ -360,35 +364,94 @@ public:
   typedef int (create_socket_callback_t)(const char* hostname,
                                          const char* port);
 
-
-  // A simple implementation of sas_log_callback_t that logs messages to stdout.
-  static void log_to_stdout(log_level_t level,
-                            const char *module,
-                            int line_number,
-                            const char *fmt,
-                            ...);
-
-  // A simple implementation of sas_log_callback_t that discards all logs.
-  static void discard_logs(log_level_t level,
-                           const char *module,
-                           int line_number,
-                           const char *fmt,
-                           ...);
-
+  /// Initialises the SAS client library.  This call must
+  /// complete before any other functions on the API can be called.
+  ///
+  /// @param  system_name
+  ///     The unique name for the system, eg: hostname
+  /// @param  system_type
+  ///     The type of this system
+  ///
+  /// @param  resource_identifier
+  ///     The version of the resource bundle
+  /// @param  sas_address
+  ///     Takes a single ipv4 address or domain name.
+  /// @param  log_callback
+  ///     Optional Logging callback
+  /// @param  socket_callback
+  ///     Optional socket callback
+  ///
+  /// @returns
+  ///     SAS_INIT_RC_OK    on success
+  ///     SAS_INIT_RC_ERR   on failure
+  ///
   static int init(std::string system_name,
                   const std::string& system_type,
                   const std::string& resource_identifier,
                   const std::string& sas_address,
                   sas_log_callback_t* log_callback,
                   create_socket_callback_t* socket_callback = NULL);
+
+  /// Terminates the connection to the SAS Client Library.
+  ///
   static void term();
+
+  /// Request a new trail ID.
+  ///
+  /// @param instance
+  ///    Can be used to identify a code location where a particular trail was created.
+  ///
   static TrailId new_trail(uint32_t instance=0u);
+
+  /// Send a SAS event.
+  /// The contents of the supplied Event are unchanged, and the ownership
+  /// remains with the calling code
+  ///
+  /// @param event
+  ///    The pre-constructed Event to send
+  ///
   static void report_event(const Event& event);
+
+  /// Send a SAS analytics message.
+  /// The contents of the supplied analytics message are unchanged, and the ownership
+  /// remains with the calling code
+  ///
+  /// @param analytics
+  ///    The pre-constructed analytics message to send
+  /// @param sas_store
+  ///    Specifies whether the message should be stored in the SAS database (as
+  ///    an event) in addition to being forwarded to the analytics server.
+  ///
   static void report_analytics(const Analytics& analytics,
                                bool sas_store = false);
+
+  /// Send a SAS marker.
+  /// The contents of the supplied marker are unchanged, and the ownership
+  /// remains with the calling code
+  ///
+  /// @param marker
+  ///    The pre-constructed Marker to send
+  /// @param scope
+  ///    The association scope.  One of: NONE, BRANCH, TRACE
+  /// @param reactivate
+  ///    Sets the association flag if true.
+  ///    If two markers are reported with this association flag set, with the same
+  ///    marker-specific data, on different trails, within 60s of one another, then this
+  ///    will cause the two trails to become associated.
+  ///
   static void report_marker(const Marker& marker,
                             Marker::Scope scope = Marker::Scope::None,
                             bool reactivate = true);
+
+  /// Associate the two trails with the given IDs.
+  ///
+  /// @param trail_a
+  ///      The first trail
+  /// @param trail_b
+  ///     The second trail
+  /// @param scope
+  ///     The association scope.  One of: NONE, BRANCH, TRACE
+  ///
   static void associate_trails(TrailId trail_a,
                                TrailId trail_b,
                                Marker::Scope scope = Marker::Scope::Branch);
@@ -397,8 +460,18 @@ public:
 
   static sas_log_callback_t* _log_callback;
 
-private:
 
+
+  /// Converts the format of a log raised within the SAS-Client to that expected by
+  /// the common log callback, and calls the common log callback with the converted
+  /// arguments.
+  static void sasclient_log_callback(sas_log_level_t level,
+                                     const char *module,
+                                     int line_number,
+                                     const char *fmt,
+                                     ...);
+
+  private:
   static void write_hdr(std::string& s,
                         uint16_t msg_length,
                         uint8_t msg_type,
