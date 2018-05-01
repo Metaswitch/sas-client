@@ -97,7 +97,7 @@ private:
   static const int SEND_TIMEOUT = 5;
 
   /// Maximum depth of SAS message queue.
-  static const int MAX_MSG_QUEUE = 1000;
+  static const int MAX_MSG_QUEUE = 100000;
 };
 
 int SAS::init(std::string system_name,
